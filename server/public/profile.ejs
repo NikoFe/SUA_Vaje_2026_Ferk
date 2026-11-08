@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/styles.css" />
+
+    <title>SUA Project</title>
+  </head>
+  <body>
+
+     <h1 >USER PAGE </h1>
+
+    <ul class="navbar">
+      <li><a href="http://localhost:3010/">Home</a></li>
+      <li><a href="http://localhost:3010/profile">Profile</a></li>
+      <li><a href="http://localhost:3010/store">Store</a></li>
+      <li><a href="http://localhost:3010/payment">Payment</a></li>
+      <li><a href="http://localhost:3010/login">Login</a></li>
+    </ul>
+
+
+     <p id="user_id_p"><%=user_id%></p>
+    <button id="getUserIdButton">GET USERID</button>
+
+    <!--
+    <p>USERNAME:</p>
+    <p id="username_p" class="info_text">  </p>
+    <p>USER EMAIL:</p>
+    <p id="user_email"  class="info_text"></p>
+    -->
+    <label>Username: <input id="username_input"></label>
+    <label>Email: <input id="email_input" type="email"></label>
+    <label>New password: <input id="password_input" type="password"></label>
+
+
+    <div id="receipts"></div>
+    <div id="shipments"></div>
+    <!--
+    <section aria-labelledby="notifications_heading">
+      <h2 id="notifications_heading">Notifications</h2>
+      <form id="notification_preferences_form">
+        <label>
+          <input id="notification_auto_delete" type="checkbox">
+          Automatically delete notifications after 10 seconds
+        </label>
+        <label>
+          Ignored types (comma-separated):
+          <input id="notification_ignored_types" type="text" maxlength="75">
+        </label>
+        <button type="submit">Save notification preferences</button>
+        <button id="delete_notification_preferences" type="button">Reset preferences</button>
+      </form>
+      <p id="notification_status" role="status"></p>
+      <button id="delete_all_notifications" type="button">Clear notifications</button>
+      <div id="notifications"></div>
+    </section>
+-->
+   </div>
+
+
+ <div id="cart"></div>
+  <p id="cart_total">Total: 0.00</p>
+  <button id="deleteCartButton">DELETE CART</button>
+   <p id="update_status" role="status"></p>
+  <button id="userUpdateButton"> UPDATE</button>
+  <!-- <button id="checkoutButton" href="http://localhost:3010/payment"> CHECKOUT</button>-->
+<button id="checkoutButton"> CHECKOUT</button>
+
+
+   <script src="/image_path.js"></script>
+   <script >
+     const notificationTimers = new Map();
+
+     async function getUser() {
+       const userId = Number.parseInt(
+         document.getElementById("user_id_p").textContent,
+         10
+       );
+
+       try {
+         const response = await fetch(`/user/${userId}`);
+         const user = await response.json();
+         if (!response.ok) {
+           throw new Error(user.error || `Request failed: ${response.status}`);
+         }
+         console.log("USERRRR: ", user);
+
+         document.getElementById("username_input").value = user.username;
+         document.getElementById("email_input").value = user.email;
+        document.getElementById("password_input").value = user.password;
+        
+        
+        
+        
+        console.log("USER:", user);
+       } catch (error) {
+         console.error("Error loading user:", error);
+       }
+     }
+///////////////////////////////////////
+
+document.getElementById("userUpdateButton").addEventListener("click", async () => {
+
+  console.log("UUUUUUUUUUUUPDATE!");
+    const status = document.getElementById("update_status");
+    const password = document.getElementById("password_input").value;
+
+       const userId = await Number.parseInt(
+         document.getElementById("user_id_p").textContent,
+         10
+       );
+       console.log("IIIIIIIIIID: ", userId);
+
+    try {
+      const response = await fetch(`/user/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username_input").value,
+          email: document.getElementById("email_input").value,
+          password
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Update failed");
+
+      status.textContent = "Profile updated.";
+      document.getElementById("password_input").value = "";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+
+  document.getElementById("deleteCartButton").addEventListener("click", async () => {
+    const status = document.getElementById("update_status");
+    try {
+      const response = await fetch("/user/cart", { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete cart");
+      }
+
+      status.textContent = `Cart cleared (${result.deleted} item(s) deleted).`;
+      await getCartItems();
+    } catch (error) {
+      console.error("Error deleting cart:", error);
+      status.textContent = error.message;
+    }
+  });
+
+  async function getCartItems() {
+    const cart = document.getElementById("cart");
+    const status = document.getElementById("update_status");
+
+    try {
+      const response = await fetch("/user/cart");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+     console.log("resultresultresultresultresultresult: ", result);
+      cart.replaceChildren();
+      if (result.length === 0) {
+        cart.textContent = "Your cart is empty.";
+        document.getElementById("cart_total").textContent = "Total: 0.00";
+        return;
+      }
+
+      const items = document.createElement("ul");
+      result.forEach((item) => {
+        const listItem = document.createElement("li");
+        listItem.textContent = `${item.product_name} — Quantity: ${item.amount}`;
+
+
+        const remove_button = document.createElement("button");
+        remove_button.textContent = "Remove";
+        remove_button.addEventListener("click", async () => {
+          try {
+            const response = await fetch(`/user/cart/${encodeURIComponent(item.id)}`, {
+              method: "DELETE",
+            });
+            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(result.error || "Failed to remove item");
+            }
+            await getCartItems();
+          } catch (error) {
+            console.error("Error removing item:", error);
+            status.textContent = error.message;
+          }
+        });
+
+
+
+        items.appendChild(listItem);
+        items.appendChild(remove_button);
+      });
+      cart.appendChild(items);
+
+      const total = await calculateCartTotal(result);
+      document.getElementById("cart_total").textContent = `Total: ${total.toFixed(2)}`;
+
+    } catch (error) {
+      console.error("Error loading cart:", error);
+      status.textContent = error.message;
+    }
+  }
+
+  async function calculateCartTotal(cartItems) {
+    const response = await fetch("/store/products");
+    const products = await response.json();
+    if (!response.ok) {
+      throw new Error(products.error || "Failed to load product prices");
+    }
+
+
+    //WIP change
+    return cartItems.reduce((total, item) => {
+      const product = products.find(
+        (candidate) => String(candidate.id) === String(item.product_id)
+      );
+      if (!product) {
+        throw new Error(`Product not found for cart item: ${item.product_name}`);
+      }
+
+      const cost = Number(product.cost);
+      const amount = Number(item.amount);
+      if (!Number.isFinite(cost) || !Number.isFinite(amount)) {
+        throw new Error(`Invalid price or quantity for ${item.product_name}`);
+      }
+
+      return total + cost * amount;
+    }, 0);
+  }
+
+
+
+ async function checkout() {
+   const status = document.getElementById("update_status");
+
+   console.log("CHECKOUT BUTTON CLICKED");
+
+   try {
+     const totalText = document.getElementById("cart_total").textContent;
+     const amount = Number(totalText.replace(/^Total:\s*/, ""));
+     if (!Number.isFinite(amount) || amount <= 0) {
+       throw new Error("Your cart is empty or its total is invalid.");
+     }
+
+  const cartResponse = await fetch("/user/cart");
+  const cartItems = await cartResponse.json();
+  if (!cartResponse.ok) {
+    throw new Error(cartItems.error || "Unable to load cart items for checkout.");
+  }
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    throw new Error("Your cart is empty.");
+  }
+
+
+  //create receipt
+  const response = await fetch("/receipt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || "Checkout failed");
+  }
+
+  const receiptId = Number(result.id);
+  if (!Number.isSafeInteger(receiptId) || receiptId <= 0) {
+    throw new Error("Receipt was created, but the service did not return its ID.");
+  }
+
+ // console.log("NEW RECEIPT ID:", receiptId);
+  
+  //create receipt_items
+  for (const item of cartItems) {
+    const itemResponse = await fetch("/receipt_item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: item.product_id,
+        receipt_id: receiptId,
+        amount: item.amount,
+      }),
+    });
+    const itemResult = await itemResponse.json();
+    if (!itemResponse.ok) {
+      throw new Error(itemResult.error || `Unable to save ${item.product_name} to the receipt.`);
+    }
+  }
+
+  const deleteResponse = await fetch("/user/cart/", {
+    method: "DELETE"
+  });
+
+  //const userId = parseId(req.body.user_id);
+  //const receiptId = parseId(req.body.receipt_id);
+
+  const response2 = await fetch("/shipment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({receipt_id:  receiptId}),
+  });
+
+
+   //const result2 = await response2.json();
+
+  status.textContent = "Checkout successful!";
+  await getCartItems();
+   } catch (error) {
+     console.error("Error during checkout:", error);
+     status.textContent = error.message;
+    }
+  }
+
+/*
+async function getReceipts() {
+    const receiptsDiv = document.getElementById("receipts");
+    try {
+      const response = await fetch("/user/receipts");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+
+      receiptsDiv.replaceChildren();
+      if (result.length === 0) {
+        receiptsDiv.textContent = "No receipts found.";
+        return;
+      }
+
+      const list = document.createElement("ul");
+      result.forEach((receipt) => {
+        const listItem = document.createElement("li");
+        listItem.textContent = `Receipt ID: ${receipt.id}, Amount: ${receipt.amount}, Date: ${new Date(receipt.date).toLocaleString()}`;
+        list.appendChild(listItem);
+      });
+      receiptsDiv.appendChild(list);
+    } catch (error) {
+      console.error("Error loading receipts:", error);
+      receiptsDiv.textContent = error.message;
+    }
+  }
+
+  getReceipts();*/
+
+  async function cancelShipment(shipment_id) {
+
+      console.log("CALLING  CANCEL: ");
+      const response = await fetch(`/shipment/cancel/${shipment_id}`, {
+
+        method:"DELETE"
+      }
+      );
+
+      const result = await response.json();
+      console.log("CANCEL RESULTS: ", result);
+
+      getShipments();
+
+  }
+
+
+  function updateShipment(form) {
+    form.hidden = !form.hidden;
+    if (!form.hidden) {
+      form.querySelector('[name="status"]').focus();
+    }
+  }
+
+  async function submitShipmentUpdate(shipment_id, form) {
+    const message = form.querySelector('[role="status"]');
+    const values = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      const response = await fetch(`/shipment/${shipment_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+
+      await getShipments();
+    } catch (error) {
+      message.textContent = error.message;
+    }
+  }
+
+
+async function restartShipment(shipment_id){
+
+       console.log("RESTARTING!");
+        const response = await fetch(`/shipment/restart/${shipment_id}`, {
+        method: "PUT",
+       // headers: { "Content-Type": "application/json" },
+        //body: JSON.stringify({shipment_id: shipment_id })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+
+      await getShipments();
+
+}
+
+ async function deleteExpired(){
+
+  console.log("DELETE EXPIRED!");
+       // const response = await fetch(`/shipment`, {
+       const response = await fetch(`/shipment`, {
+        method: "DELETE",
+       // headers: { "Content-Type": "application/json" },
+        //body: JSON.stringify({shipment_id: shipment_id })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+
+      await getShipments();
+ } 
+
+
+async function getReceipts() {
+
+
+    const receiptsDiv = document.getElementById("receipts");
+
+
+//try {
+      const response = await fetch("/receipts");
+      const result = await response.json();
+
+     console.log("RECEIPTs GET RESULT: ", result);
+
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+      if (!Array.isArray(result)) {
+        throw new Error("The receipts service returned data in an unexpected format.");
+      }
+
+      receiptsDiv.replaceChildren();
+      if (result.length === 0) {
+        receiptsDiv.textContent = "No receipts found.";
+        return;
+      }
+    
+      const list = document.createElement("ul");
+
+      result.forEach((receipt) => {
+        const listItem = document.createElement("li");
+        listItem.textContent =
+          `Receipt ID: ${receipt.id}, Amount: ${receipt.amount}, Date: ${new Date(receipt.date).toLocaleString()}`;
+        list.appendChild(listItem);
+      });
+      receiptsDiv.appendChild(list);
+}
+
+
+async function getShipments() {
+
+    const shipsDiv = document.getElementById("shipments");
+
+try {
+      const response = await fetch(`/shipment`);
+      const result = await response.json();
+
+     console.log("SHIPMENT GET RESULT: ", result);
+
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+
+      shipsDiv.replaceChildren();
+      if (result.length === 0) {
+        shipsDiv.textContent = "No shipment found.";
+        return;
+      }
+
+      const list = document.createElement("ul");
+      result.forEach((shipment) => {
+        const listItem = document.createElement("li");
+        listItem.append(
+          document.createTextNode(
+            `Shipment ID: ${shipment.id}, Receipt_ID: ${shipment.receipt_id}, User_ID: ${shipment.user_id}, \n Status: ${shipment.status},
+            Shipment Location: "${shipment.location},Shipment target location: ${shipment.target_location}, start date: ${shipment.start_date} "
+            
+            `
+          )
+        );
+
+        const listDeleteButton = document.createElement("button");
+        listDeleteButton.type = "button";
+        listDeleteButton.textContent = "CANCEL";
+        listDeleteButton.addEventListener("click", () => cancelShipment(shipment.id));
+        listItem.appendChild(listDeleteButton);
+
+        const updateForm = document.createElement("form");
+        updateForm.hidden = true;
+        const fields = [
+         // ["status", "Status", shipment.status],
+          ["location", "Location", shipment.location],
+          ["target_location", "Target location", shipment.target_location]
+        ];
+        fields.forEach(([name, labelText, value]) => {
+          const label = document.createElement("label");
+          label.textContent = `${labelText}: `;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.name = name;
+          input.value = value ?? "";
+          input.required = true;
+          label.appendChild(input);
+          updateForm.appendChild(label);
+        });
+
+        const submitButton = document.createElement("button");
+        submitButton.type = "submit";
+        submitButton.textContent = "Save";
+        updateForm.appendChild(submitButton);
+
+        const updateMessage = document.createElement("span");
+        updateMessage.setAttribute("role", "status");
+        updateForm.appendChild(updateMessage);
+        updateForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          submitShipmentUpdate(shipment.id, updateForm);
+        });
+
+        const listUpdateButton = document.createElement("button");
+        listUpdateButton.type = "button";
+        listUpdateButton.textContent = "UPDATE";
+        listUpdateButton.addEventListener("click", () => updateShipment(updateForm));
+
+////////////////////////////
+
+
+        const listRescheduleButton = document.createElement("button");
+        listRescheduleButton.type = "button";
+        listRescheduleButton.textContent = "RESCHEDULE";
+        listRescheduleButton.addEventListener("click", () => restartShipment(shipment.id));
+       // listRescheduleButton.appendChild(listDeleteButton);
+
+
+        listItem.appendChild(listUpdateButton);
+        listItem.appendChild(listDeleteButton);
+        listItem.appendChild(listRescheduleButton);
+
+        listItem.appendChild(updateForm);
+
+
+     list.appendChild(listItem);
+
+
+      });
+      shipsDiv.appendChild(list);
+    } catch (error) {
+      console.error("Error loading receipts:", error);
+      shipsDiv.textContent = error.message;
+    }
+};
+
+
+
+async function deleteNotification(notificationId) {
+  const status = document.getElementById("notification_status");
+  const timer = notificationTimers.get(notificationId);
+  if (timer) {
+    clearTimeout(timer);
+    notificationTimers.delete(notificationId);
+  }
+
+  try {
+    const response = await fetch(`/notification/${notificationId}`, { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+    await getNotifications();
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+    status.textContent = error.message;
+  }
+}
+
+async function getNotificationPreferences() {
+  const status = document.getElementById("notification_status");
+  try {
+    const response = await fetch("/notification_preferences");
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+
+    document.getElementById("notification_auto_delete").checked =
+      Number(result.marked_needed_to_delete) === 1;
+    document.getElementById("notification_ignored_types").value =
+      result.ignored_types || "";
+  } catch (error) {
+    console.error("Error loading notification preferences:", error);
+    status.textContent = error.message;
+  }
+}
+/*
+document.getElementById("notification_preferences_form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const status = document.getElementById("notification_status");
+  try {
+    const response = await fetch("/notification_preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        marked_needed_to_delete: document.getElementById("notification_auto_delete").checked ? 1 : 0,
+        ignored_types: document.getElementById("notification_ignored_types").value
+      })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+    status.textContent = "Notification preferences saved.";
+    await getNotifications();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});*/
+/*
+document.getElementById("delete_notification_preferences").addEventListener("click", async () => {
+  const status = document.getElementById("notification_status");
+  try {
+    const response = await fetch("/notification_preferences", { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+    document.getElementById("notification_auto_delete").checked = false;
+    document.getElementById("notification_ignored_types").value = "";
+    status.textContent = "Notification preferences reset.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});*/
+/*
+document.getElementById("delete_all_notifications").addEventListener("click", async () => {
+  const status = document.getElementById("notification_status");
+  try {
+    const response = await fetch("/notification", { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+    status.textContent = "Notifications cleared.";
+    await getNotifications();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+*/
+//////////////////////////////////////
+  document.getElementById("checkoutButton").addEventListener("click", ()=>checkout());
+  getCartItems();
+  getUser();
+  getShipments();
+  deleteExpired();
+  getReceipts();
+ // getNotifications();
+  //getNotificationPreferences();
+   </script>
+
+
+      <script> 
+      
+      document.getElementById("getUserIdButton").addEventListener("click", async ()=>  {
+    
+     //fetch("")
+   console.log("--------------- " );
+
+   const response= await fetch(
+      `http://localhost:3010/session_id`);
+      
+
+      const result = await response.json();
+
+      console.log("--------------- ",response );
+      console.log("--------------- ",result.userId);
+
+
+
+  })</script>
+
+
+
+  </body>
+</html>

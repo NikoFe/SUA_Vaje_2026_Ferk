@@ -1,0 +1,19 @@
+Store service:
+
+ app.get('/',async (req, res)
+
+app.get('/:id', async (req, res) => {
+
+app.get('/comments', async (req, res) => {
+
+app.get('/comments/:id', async (req, res) => {
+
+app.post('/', async (req, res) => {
+
+app.post('/comments', async (req, res) => {
+
+
+app.put('/:id', async (req, res) => {
+
+app.delete('/:id', async(req, res) => {
+

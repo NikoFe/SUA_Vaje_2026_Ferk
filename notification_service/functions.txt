@@ -1,0 +1,43 @@
+
+I want you to implement the following my notification_service.js endpoints:
+
+
+POST notification/user_id      create notification to a specific user_id
+
+POST notification_preferences/user_id  create user preference for notification
+
+DELETE notification/notification_id   after the user marks it as read.
+
+DELETE notification_preferences/
+
+PUT   notification_preferences/
+
+GET notification/        get the current notifications and show it
+
+GET notification_preferences/  
+
+
+The two tables for notifications are the following:
+
+Table: notification
+Columns:
+id int PK 
+user_id int 
+text varchar(45) 
+type varchar(45) 
+marked_needed_to_delete int
+
+Table: notification_preference
+Columns:
+id int PK 
+user_id int 
+marked_needed_to_delete int 
+ignored_types varchar(75)
+
+marked_needed_to_delete int  simply means that the notification is deleted shortly after it pops up for the user in the browser.
+
+
+//DELETE notification/     deletes all notifications
+
+
+I also don't know what to add as the second put endpoint, since my notifications table will not have a marked as read value, once the user marks the notification as read, the notification is instantly deleted.

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/styles.css" />
+
+    <title>SUA Project</title>
+  </head>
+  <body>
+    <ul class="navbar">
+      <li><a href="http://localhost:3010/">Home</a></li>
+      <li><a href="http://localhost:3010/profile">Profile</a></li>
+      <li><a href="http://localhost:3010/store">Store</a></li>
+      <li><a href="http://localhost:3010/payment">Payment</a></li>
+      <li><a href="http://localhost:3010/login">Login</a></li>
+    </ul>
+    <button id="getUserIdButton">GET USERID</button>
+
+
+     <h1 >PRODUCT PAGE  ID: </h1>
+
+
+
+
+     <h2 id="id_header" hidden><%= id_param %></h2>
+     
+   <div id="products-list" class></div>
+
+   <button id="cartAddBtn"> +</button>
+   <button id="cartRemoveBtn"> -</button>
+   <button id="cartBtn"> ADD TO CART</button>
+   <p id="amount">1</p>
+
+
+   <div id="comments" >
+
+  <button id="comment_button">
+    POST A COMMNENT
+  </button>
+
+
+   </div>
+
+
+
+   <script src="/image_path.js"></script>
+   <script src="/product_script.js">
+   </script>
+      <script> 
+      
+      document.getElementById("getUserIdButton").addEventListener("click", async ()=>  {
+     //fetch("")
+   console.log("--------------- " );
+
+   const response= await fetch(
+      `http://localhost:3010/session_id`);
+      
+      const result = await response.json();
+      console.log("--------------- ",response );
+      console.log("--------------- ",result.userId);
+  })</script>
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,52 @@
+STORITVE:
+
+
+
+
+● Product Catalog Management
+
+● Order Management
+
+● User Management
+
+-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+///////////////////////
+
+
+
+
+STATIC MENU SERVICE – Storitev, ki enostavno ponuja seznam vseh jedi, ki jih gostilna
+ponuja, ne glede na trenutne zaloge, uporabniki lahko dodajo komentar pod vsako jed,
+ki je tudi nato shranjen v ustrezno tabelo v bazi (MySQL,Node.js)
+
+
+ PAYMENT SERVICE – Storitev, kjer uporabnik vnaprej plača za hrano, ki bo dostavljena,
+ob izpolnjenem plačilu je uporabnik preusmerjen nazaj na domačo stran in obveščen o
+opravljenem naročilu preko storitve za obveščanje (notification service) (MySQL,
+Node.js)
+
+
+
+
+ORDER SERIVE – Storitev, kjer lahko uporabnik določi, katero hrano bo naročil, njeno
+količino, lokacijo dostave itd. Ob pritisku na gumb za naročilo hrane je uporabnik
+preusmerjen na storitev za plačilo (payment service) (GraphQL,Node.js )
+
+
+NOTIFICATION SERVICE- Storitev, ki obvesti uporabnika ob raznih dogodkih kot so
+uspešno ustvarjanje naročila, napredek v doseganje višje ravni ob dovolj velikem
+nakupu hrane itd. (RabbitMQ, Flask,MySQL ali Redis )

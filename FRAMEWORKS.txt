@@ -1,0 +1,18 @@
+catalogue - express
+
+user profile - spring boot
+
+payment and shipping - FAST API
+
+notification - express
+
+
+///node js frameworks
+
+Fastify
+
+NestJS
+
+Koa
+
+ Hono

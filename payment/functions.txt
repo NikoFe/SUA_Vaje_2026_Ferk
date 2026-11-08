@@ -1,0 +1,24 @@
+
+IMPLEMENTED
+
+
+-------------------------------------
+NOT IMPLEMENTED
+
+
+
+GET /receipt/user_id   -SHOW USER THEIR PURCHASE HISTORY by retrieving all receipts
+GET shipment    -show the user all active shipments heading their way (status not set to cancelled)
+
+
+POST shipment/  -create shipment with random location, current datetime and appropriate user/receipt id and with status set to "BEING DELIVERED" by default
+POST   /receipt   -create invoice after successfuly bought and delete the contents of the cart from user service
+
+
+PUT shipment/target_location/receipt_id     -update the users target location/addresss (set it to a random location for simulation purpose)
+PUT shipment/status/receipt_id        -update shipment status 
+PUT shipment/location/receipt_id         -update shipment location to random coordinates 
+
+DELETE shipment/cancel/receipt_id  -set status to "CANCELLED"
+DELETE shipment/receipt_id   -delete shipment after it reaches user
+

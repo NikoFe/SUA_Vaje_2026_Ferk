@@ -1,0 +1,27 @@
+
+app.get("/:id",
+
+
+app.post("/validate"
+app.post("/create", 
+app.post("/cart",
+
+
+
+app.put("/:id", 
+
+
+
+post cart
+get cart/:id
+delete cart/:id
+/////////
+
+
+delete cart/
+put cart/:id
+
+
+
+
+///WIP DELETE

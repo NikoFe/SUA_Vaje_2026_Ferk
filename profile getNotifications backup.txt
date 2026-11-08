@@ -1,0 +1,46 @@
+async function getNotifications() {
+  const notificationsDiv = document.getElementById("notifications");
+  const status = document.getElementById("notification_status");
+
+  try {
+    const response = await fetch("/notification");
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+    if (!Array.isArray(result)) {
+      throw new Error("The notification service returned data in an unexpected format.");
+    }
+
+    notificationTimers.forEach((timer) => clearTimeout(timer));
+    notificationTimers.clear();
+    notificationsDiv.replaceChildren();
+    status.textContent = "";
+    if (result.length === 0) {
+      notificationsDiv.textContent = "No notifications.";
+      return;
+    }
+
+    const list = document.createElement("ul");
+    result.forEach((notification) => {
+      const item = document.createElement("li");
+      item.textContent = `${notification.type}: ${notification.text} `;
+
+      const readButton = document.createElement("button");
+      readButton.type = "button";
+      readButton.textContent = "Mark as read";
+      readButton.addEventListener("click", () => deleteNotification(notification.id));
+      item.appendChild(readButton);
+      list.appendChild(item);
+
+      if (Number(notification.marked_needed_to_delete) === 1) {
+        const timer = setTimeout(() => deleteNotification(notification.id), 10000);
+        notificationTimers.set(notification.id, timer);
+      }
+    });
+    notificationsDiv.appendChild(list);
+  } catch (error) {
+    console.error("Error loading notifications:", error);
+    status.textContent = error.message;
+  }
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/styles.css" />
+
+    <title>SUA Project</title>
+  </head>
+  <body>
+    <ul class="navbar">
+      <li><a href="http://localhost:3010/">Home</a></li>
+      <li><a href="http://localhost:3010/profile">Profile</a></li>
+      <li><a href="http://localhost:3010/store">Store</a></li>
+      <li><a href="http://localhost:3010/payment">Payment</a></li>
+      <button id="getUserIdButton">GET USERID</button>
+    </ul>
+    <button id="getUserIdButton">GET USERID</button>
+
+
+
+    <h1> PAYMENT </h1>
+
+
+
+  </body>
+  <script src="/image_path.js"></script>
+    <script src="/store_script.js"></script>
+      <script> 
+      
+      document.getElementById("getUserIdButton").addEventListener("click", async ()=>  {
+    
+     //fetch("")
+   console.log("--------------- " );
+
+   const response= await fetch(
+      `http://localhost:3010/session_id`);
+      
+
+      const result = await response.json();
+
+      console.log("--------------- ",response );
+      console.log("--------------- ",result.userId);
+
+
+
+  })</script>
+
+</html>
