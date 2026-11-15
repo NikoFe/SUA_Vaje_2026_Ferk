@@ -1,0 +1,16 @@
+app.put("/notification_preferences", async (req, res) => {
+
+    const userId = req.session.userId;
+
+    if (!userId) return;
+
+     const response = await fetch(
+               `http://localhost:3004/notification_preferences/${encodeURIComponent(userId)}`,
+       {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(req.body),
+        }
+
+        );
+

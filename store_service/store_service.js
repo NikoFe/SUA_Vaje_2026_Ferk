@@ -158,6 +158,9 @@ console.log (JSON.stringify(req.body))
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path]
     );
+
+///||||///
+
     res.status(201).json({ message: 'Product created', id });
   } catch (error) {
     console.error('Error creating product:', error);
@@ -193,6 +196,9 @@ app.put('/:id', async (req, res) => {
 
      //   console.log("OOOO user_has_meal_value SUCCESS");
 
+
+     ///|||/// 
+
         res.json({ message: "update success" });
 
     } catch (error) {
@@ -221,6 +227,7 @@ app.delete('/:id', async(req, res) => {
     [id]
   );
 
+  ///|||///
 
   console.log("Successfully deleted")
   res.json({ message: "delete meal success" }); // 
@@ -274,6 +281,8 @@ console.log (JSON.stringify(req.body))
 
  console.log ("SO FAR SO GOOD");
 
+
+ ///|||///
 
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/

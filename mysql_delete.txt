@@ -1,0 +1,14 @@
+
+
+DELETE FROM cart_item;
+DELETE FROM notification;
+DELETE FROM notification_preference;
+DELETE FROM shipment;
+DELETE FROM receipt_item;
+DELETE  FROM comments;
+DELETE FROM receipt;
+DELETE FROM shipment WHERE start_date <= DATE_SUB(NOW(), INTERVAL 5 MINUTE);
+DELETE FROM borrow;
+DELETE  FROM shipping;
+
+

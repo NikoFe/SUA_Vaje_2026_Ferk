@@ -1,0 +1,392 @@
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const { randomInt } = require("node:crypto");
+
+const app = express();
+const PORT = 3004;
+
+if (process.env.NODE_ENV === "test") {
+  require("dotenv").config({ path: "./.env.test" });
+} else {
+  require("dotenv").config({ path: "./.env" });
+}
+
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  decimalNumbers: true,
+};
+
+app.use(express.json());
+app.use(cors());
+/*
+function parseId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}*/
+
+function parseFlag(value) {
+  if (value === true || value === 1 || value === "1") {
+    return 1;
+  }
+  if (value === false || value === 0 || value === "0") {
+    return 0;
+  }
+  return null;
+}
+/*
+function getUserId(req) {
+  return parseId(req.params.user_id || req.query.user_id || req.body?.user_id);
+}*/
+/*
+  return value
+    .split(",")
+    .map((entry) => {
+      const separator = entry.lastIndexOf(":");
+      if (separator === -1) {
+        return entry.trim();
+      }
+
+      const type = entry.slice(0, separator).trim();
+      const ignored = entry.slice(separator + 1).trim().toLowerCase() === "true";
+      return ignored ? type : "";
+    })
+    .filter(Boolean);*/
+
+app.post(["/notification", "/notification/:user_id"], async (req, res) => {
+  const userId = req.body.user_id;
+
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  const type = typeof req.body?.type === "string" ? req.body.type.trim() : "";
+  const markedNeededToDelete = req.body.marked_needed_to_delete;
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const id = randomInt(1, 2147483647);
+    await connection.execute(
+      "INSERT INTO notification (id, user_id, text, type) VALUES (?, ?, ?, ?)",
+      [id, userId, text, type],
+    );
+    console.log("|||||| NOTIFICATION message: ", text);
+
+    return res.status(201).json({
+      id,
+      user_id: userId,
+      text,
+      type,
+    });
+  } catch (error) {
+    console.error("Error creating notification:", error);
+    return res.status(500).json({ error: "Unable to create notification" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+//app.get(["/notification", "/notification/:user_id"], async (req, res) => {
+
+  /*
+function isIgnored(type, ignoredTypes) {
+  const normalizedType = type.toLocaleLowerCase();
+  return ignoredTypes.some(
+    (ignoredType) => ignoredType.toLocaleLowerCase() === normalizedType,
+  );
+}
+
+async function loadPreference(connection, userId) {
+  const [rows] = await connection.execute(
+    "SELECT id, user_id, ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
+    [userId],
+  );
+  if (rows.length != 0) {
+    console.log("NOTIFICATION PREFERENCE FOR USER: ", rows[0]);
+  } else {
+    console.log("NO NOTIFICATION PREFERENCES FOR USER!");
+  }
+  return rows[0] || null;
+}*/
+
+function parseIgnoredTypes(value) {
+console.log("AAAAAA");
+  if (typeof value !== "string") {
+      console.log("INVALID TYPE");
+      console.log("PARSED TYPE: ", typeof(value));
+    return [];
+  }
+
+   console.log("PPPARSED TYPE: ", typeof(value));
+
+  const stringArray = value.split(",");
+
+  console.log("STRING ARRAY: ",stringArray);
+  const ignoredTypes = new Map();
+
+  for (const  arrayElement of stringArray) {
+
+    console.log("ARRAY ELEMENT: ",arrayElement );
+    const twoParts = arrayElement.split(":");
+    const text = twoParts[0];
+
+    console.log(
+      "FFFIRST PART: ",
+      twoParts[0],
+      " SSSSECOND PART:",
+      twoParts[1],
+      "\n",
+    );
+
+    let booleanValue = false;
+
+    if (twoParts[1] == "true") {
+      booleanValue = true;
+    } else {
+      booleanValue = false;
+    }
+    ignoredTypes.set(text, booleanValue);
+  }
+  return ignoredTypes;
+}
+
+
+app.get("/notification/:user_id", async (req, res) => {
+  console.log("GETTING NOTIFICATIONS! ");
+  const userId = parseInt(req.params.user_id);
+  //const userId =req.params.user_id;
+  //const userId =req.body.user_id;
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    //  const preference = await loadPreference(connection, userId);
+    //const ignoredTypes = parseIgnoredTypes(preference?.ignored_types || "");
+    const [rows] = await connection.execute(
+      "SELECT id, user_id, text, type FROM notification WHERE user_id = ?",
+      [userId],
+    );
+    console.log("MADE IT HERE IN GETTING NOTIFICATIONS!");
+
+    const [notification_preferences_ignored_type] = await connection.execute(
+      "SELECT ignored_types FROM notification_preference WHERE user_id  = ?",
+      [userId],
+    );
+    console.log("MYSQL OOOOOO BEFORE: ",notification_preferences_ignored_type);
+    let recievedString = String(notification_preferences_ignored_type[0]);
+    console.log("MYSQL OOOOOO: ",recievedString);
+
+    let ignoredTypes = parseIgnoredTypes(
+      recievedString,
+    );
+
+    console.log("IGNORED TYPES MAP: ", ignoredTypes);
+    //console.log(" IGNORED TYPES MAP : ", ignoredTypes["USER CREATED"]);
+
+        let finalRows= [];
+    for (const  row of rows) {
+   
+      console.log("ROW TYPE: ", row.type);
+
+       const rowType = String(row.type);
+       if(ignoredTypes.has(rowType)){
+       console.log("HUZZAH!");
+
+         if(ignoredTypes.get(rowType)==true){
+        console.log("OK");
+         finalRows.push(row);
+         }
+       }
+       }
+  console.log("FINAL RESULT: ",finalRows )
+
+
+    return res.json(finalRows);
+
+      }
+
+    //return res.json(rows.filter((notification) => !isIgnored(notification.type, ignoredTypes))); !!!!
+ catch (error) {
+    console.error("Error getting notifications:", error);
+    return res.status(500).json({ error: "Unable to get notifications" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.delete("/notification/:notification_id", async (req, res) => {
+  console.log("CALLING DELETE DDDDDDDDDDD");
+
+  const notificationId = req.params.notification_id;
+  //
+
+  // parseId(req.params.notification_id);
+  //const userId =req.body.user_id;
+  //const userId = getUserId(req);
+  if (!notificationId) {
+    return res
+      .status(400)
+      .json({ error: "Valid notification_id  is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "DELETE FROM notification WHERE id = ?",
+      [notificationId],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+    return res.json({ deleted: result.affectedRows, id: notificationId });
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+    return res.status(500).json({ error: "Unable to delete notification" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+/*
+app.delete("/notification/:notification_id", async (req, res) => {
+  console.log("CALLING DELETE DDDDDDDDDDD");
+  //  const userId =req.body.user_id;
+   const notification_id= parseInt( req.params.notification_id);
+
+
+  //const userId = getUserId(req);
+  if (!notification_id) {
+    return res.status(400).json({ error: "A valid notification_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "DELETE FROM notification WHERE notification_id = ?",
+      [notification_id]
+    );
+    return res.json({ deleted: result.affectedRows });
+  } catch (error) {
+    console.error("Error deleting notifications:", error);
+    return res.status(500).json({ error: "Unable to delete notifications" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+*/
+
+/*
+app.delete("/notification", async (req, res) => {
+  console.log("CALLING DELETE DDDDDDDDDDD");
+    const userId =req.body.user_id;
+  //const userId = getUserId(req);
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "DELETE FROM notification WHERE user_id = ?",
+      [userId]
+    );
+    return res.json({ deleted: result.affectedRows });
+  } catch (error) {
+    console.error("Error deleting notifications:", error);
+    return res.status(500).json({ error: "Unable to delete notifications" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+*/
+
+app.post("/notification_preferences/:user_id", async (req, res) => {
+  console.log("CREATING NOTIFICATION PREFERENCES ~~~~~~~~~~~~");
+  const userId = parseInt(req.params.user_id);
+  console.log("USERID: ", userId);
+
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const id = randomInt(1, 2147483647);
+
+    const [rows] = await connection.execute(
+      // "SELECT id, user_id, marked_needed_to_delete, ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
+      "INSERT INTO notification_preference (id, user_id, ignored_types) VALUES (?, ?, 'USER CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false')",
+      [id, userId],
+    );
+
+    console.log("RRRRRRRR ROWS LENGTH" + rows.length);
+
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error getting notification preferences:", error);
+    return res
+      .status(500)
+      .json({ error: "Unable to get notification preferences" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.get(["/notification_preferences/:user_id"], async (req, res) => {
+  //  const userId =req.body.user_id;
+  const userId = parseInt(req.params.user_id);
+
+  //const userId = getUserId(req);
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      // "SELECT id, user_id, marked_needed_to_delete, ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
+      "SELECT * FROM notification_preference WHERE user_id = ? LIMIT 1",
+
+      [userId],
+    );
+
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error getting notification preferences:", error);
+    return res
+      .status(500)
+      .json({ error: "Unable to get notification preferences" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Notification service is running on http://localhost:${PORT}`);
+});

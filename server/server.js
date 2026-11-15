@@ -849,98 +849,131 @@ app.put("/shipment/:shipment_id", async (req, res) => {
     }
  });
 
-async function forwardNotificationRequest(res, path, options = {}) {
-    try {
-        const response = await fetch(`http://localhost:${NOTIFICATION_PORT}${path}`, options);
+
+app.get("/notification", async (req, res) => {
+    //const userId = requireNotificationUser(req, res);
+    //if (!userId) return;
+
+
+    if (!req.session.userId) {
+        res.status(401).json({ error: "Please log in to manage notifications" });
+        return null;
+    }
+
+     try {
+
+        //                      
+        const response = await fetch(`http://localhost:3004/notification/${req.session.userId}`);
         const result = await response.json();
         return res.status(response.status).json(result);
     } catch (error) {
         console.error("Error contacting notification service:", error);
         return res.status(502).json({ error: "Notification service unavailable" });
     }
-}
-
-function requireNotificationUser(req, res) {
-    if (!req.session.userId) {
-        res.status(401).json({ error: "Please log in to manage notifications" });
-        return null;
-    }
-    return req.session.userId;
-}
-
-app.get("/notification", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
+    
+    /*
     return forwardNotificationRequest(
         res,
         `/notification/${encodeURIComponent(userId)}`
-    );
+    );*/
 });
 
-app.post("/notification", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
-    return forwardNotificationRequest(
-        res,
-        `/notification/${encodeURIComponent(userId)}`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(req.body),
-        }
-    );
-});
+app.delete("/notification/:notification_id", async (req, res) => {
 
-app.delete("/notification", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
-    return forwardNotificationRequest(
-        res,
-        `/notification?user_id=${encodeURIComponent(userId)}`,
-        { method: "DELETE" }
-    );
-});
 
-app.delete("/notification/:notification_id", (req, res) => {
-    const userId = requireNotificationUser(req, res);
+    console.log("CALLING DELETE NOTIFICATIONS");
+    const userId= parseInt(req.session.userId);
+    //const userId = requireNotificationUser(req, res);
     if (!userId) return;
     const notificationId = Number(req.params.notification_id);
     if (!Number.isSafeInteger(notificationId) || notificationId <= 0) {
         return res.status(400).json({ error: "Invalid notification ID" });
     }
+
+    try {
+        const response = await fetch(
+            `http://localhost:3004/notification/${notificationId}`,
+
+         { method: "DELETE",
+           body: JSON.stringify({user_id: req.session.userId})
+
+
+
+             }
+
+
+        );
+
+        const result = await response.json();
+
+       console.log("DELETE RESSSSULT: ", result);
+
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error("Error contacting payment service for receipts:", error);
+        return res.status(502).json({ error: "Payment service unavailable" });
+    }
+
+
+
+    ///WIP HERE!
+    /*
     return forwardNotificationRequest(
         res,
         `/notification/${encodeURIComponent(notificationId)}?user_id=${encodeURIComponent(userId)}`,
         { method: "DELETE" }
-    );
+    );*/
 });
 
-app.get("/notification_preferences", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
-    return forwardNotificationRequest(
-        res,
-        `/notification_preferences/${encodeURIComponent(userId)}`
-    );
+
+
+
+
+app.get("/notification_preferences",async (req, res) => {
+
+   console.log("GETTING NOTIFACTION PREFERENCES SERVER!");
+
+    if (!req.session.userId) {
+        res.status(401).json({ error: "Please log in to manage notifications" });
+        return null;
+    }
+
+    
+ try {
+        const response = await fetch(
+            `http://localhost:3004/notification_preferences/${req.session.userId}`,
+        );
+       console.log("GET PREFERENCE RESPONSE: ", response);
+        const result = await response.json();
+       console.log("GET PREFERENCE RESSSSULT: ", result);
+
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error("Error contacting notification service:", error);
+        return res.status(502).json({ error: "Notification service unavailable" });
+    }
 });
 
-app.post("/notification_preferences", (req, res) => {
-    const userId = requireNotificationUser(req, res);
+app.put("/notification_preferences", async (req, res) => {
+
+    const userId = req.session.userId;
+
     if (!userId) return;
-    return forwardNotificationRequest(
-        res,
-        `/notification_preferences/${encodeURIComponent(userId)}`,
-        {
-            method: "POST",
+
+     const response = await fetch(
+               `http://localhost:3004/notification_preferences/${encodeURIComponent(userId)}`,
+       {
+            method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(req.body),
         }
-    );
-});
 
-app.put("/notification_preferences", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
+        );
+
+
+
+
+    /*
     return forwardNotificationRequest(
         res,
         `/notification_preferences/${encodeURIComponent(userId)}`,
@@ -949,30 +982,20 @@ app.put("/notification_preferences", (req, res) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(req.body),
         }
-    );
+    );*/
+
+
 });
 
-app.delete("/notification_preferences", (req, res) => {
-    const userId = requireNotificationUser(req, res);
-    if (!userId) return;
-    return forwardNotificationRequest(
-        res,
-        `/notification_preferences/${encodeURIComponent(userId)}`,
-        { method: "DELETE" }
-    );
-});
+
+
+
 
 app.get("/session_id" , async (req, res )=>{
 
  res.json ({userId:req.session.userId});
     
 })
-
-
-
-
-
-
 
 const PORT = process.env.PORT || 3010;
 

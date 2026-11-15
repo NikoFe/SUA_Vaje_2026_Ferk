@@ -18,8 +18,11 @@
     </ul>
 
 
+     <div id="notifications"></div>
+
      <p id="user_id_p"><%=user_id%></p>
     <button id="getUserIdButton">GET USERID</button>
+
 
     <!--
     <p>USERNAME:</p>
@@ -34,6 +37,12 @@
 
     <div id="receipts"></div>
     <div id="shipments"></div>
+
+
+      <h2 id="notifications_heading">Notifications</h2>
+ 
+    <div id="notification_preferences"></div>
+
     <!--
     <section aria-labelledby="notifications_heading">
       <h2 id="notifications_heading">Notifications</h2>
@@ -591,19 +600,93 @@ async function deleteNotification(notificationId) {
   }
 }
 
+
+function parseIgnoredTypes(value) {
+  if (typeof value !== "string") {
+    return new Map();
+  }
+
+  const ignoredTypes = new Map();
+  for (const entry of value.split(",")) {
+    const separator = entry.lastIndexOf(":");
+    if (separator === -1) {
+      continue;
+    }
+
+    const type = entry.slice(0, separator).trim().toLowerCase();
+    if (type) {
+      ///ADD TO MAP
+      ignoredTypes.set(
+        type,
+        entry.slice(separator + 1).trim().toLowerCase() === "true",
+      );
+    }
+  }
+  return ignoredTypes;
+}
+
 async function getNotificationPreferences() {
+  console.log("MMMMMMMMMMMMMMMMMMMMMMMM");
   const status = document.getElementById("notification_status");
   try {
-    const response = await fetch("/notification_preferences");
+     const response = await fetch("/notification_preferences");
+ //   const response = await fetch("localhost:3004/notification_preferences");
     const result = await response.json();
+
+    console.log("NOTIFICATION PREFERENCES: ",result);
     if (!response.ok) {
       throw new Error(result.error || `Request failed: ${response.status}`);
     }
+  const ignoredTypesPreParse=result.ignored_types;
 
-    document.getElementById("notification_auto_delete").checked =
-      Number(result.marked_needed_to_delete) === 1;
-    document.getElementById("notification_ignored_types").value =
-      result.ignored_types || "";
+  console.log("IGNORED TYPES: ",ignoredTypesPreParse);
+
+   const notification_preferences_div = document.getElementById("notification_preferences");
+
+
+  const ignoredTypes = parseIgnoredTypes(ignoredTypesPreParse);
+
+  const notificationsPreferenceDiv = document.getElementById ("notification_preferences");
+
+
+ignoredTypes.forEach (function(value, key) {
+
+
+
+
+  const ignoredDiv = document.createElement("div");
+  ignoredDiv.className = "ignoredTypeDivs";
+  ignoredDiv.innerHTML= key;
+
+///////////////
+  const ignoredStatus = document.createElement("p");
+  ignoredStatus.innerHTML = value;
+
+  ignoredDiv.append(ignoredStatus);
+///////////////
+
+ const toggleStatusButton =  document.createElement("button");
+ toggleStatusButton.innerHTML = "TOGGLE";
+ ignoredDiv.append(toggleStatusButton);
+toggleStatusButton.addEventListener("click", async ()=>{
+const response = await fetch("/notification_preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+         type: key
+        })
+});
+}
+)
+
+///////////
+  notificationsPreferenceDiv.append(ignoredDiv);
+})
+/*
+   for ( const type in ignoredTypes){
+   console.log("?????: ",type.key );
+   }
+*/
   } catch (error) {
     console.error("Error loading notification preferences:", error);
     status.textContent = error.message;
@@ -668,11 +751,11 @@ document.getElementById("delete_all_notifications").addEventListener("click", as
   document.getElementById("checkoutButton").addEventListener("click", ()=>checkout());
   getCartItems();
   getUser();
-  getShipments();
-  deleteExpired();
+ // getShipments();
+ // deleteExpired();
   getReceipts();
  // getNotifications();
-  //getNotificationPreferences();
+  getNotificationPreferences();
    </script>
 
 

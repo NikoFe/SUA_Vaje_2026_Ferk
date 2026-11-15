@@ -2,19 +2,30 @@
 I want you to implement the following my notification_service.js endpoints:
 
 
-POST notification/user_id      create notification to a specific user_id
 
 POST notification_preferences/user_id  create user preference for notification
 
-DELETE notification/notification_id   after the user marks it as read.
 
 DELETE notification_preferences/
 
 PUT   notification_preferences/
 
-GET notification/        get the current notifications and show it
+
 
 GET notification_preferences/  
+
+////////////////////////////////////////////////////////////////////// COMPLETED:
+
+DELETE notification/notification_id   after the user marks it as read.
+
+POST notification/user_id      create notification to a specific user_id
+
+GET notification/user_id        get the current user notifications and show it
+
+
+/////////////////////////////////////
+
+
 
 
 The two tables for notifications are the following:

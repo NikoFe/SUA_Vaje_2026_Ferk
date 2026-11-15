@@ -227,16 +227,7 @@ app.put("/cart", async (req, res) => {//*** */
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-
-
-
-
     }
-
-
-
-
 
     return res.json({ count: rows.length });
   } finally {
@@ -298,6 +289,10 @@ app.post("/create", async (req, res) => { /*** */
   console.log("creation process");
   const {id, username, email, password,user_id } = req.body;
 
+
+  console.log("RRRRRRR:  ID: ", id);
+  console.log("RRRRRRR:  USER ID: ", user_id);
+
   let connection;
 
   connection = await mysql.createConnection(dbConfig);
@@ -322,6 +317,40 @@ app.post("/create", async (req, res) => { /*** */
 
       [id, username, password, email],
     );
+
+//////////////////////
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+       await fetch('http://localhost:3004/notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id:  id,
+                text: "USER SUCCESSFULY CREATED!",
+                type: "USER CREATED",
+                marked_needed_to_delete: 0
+         
+            })
+        });
+
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+ const response =  fetch(`http://localhost:3004/notification_preferences/${id}`, {
+            method: 'POST',
+
+        });
+
+
+
+
+
+
+
+/////////////////////
+
+
     res.status(201).json({ output: rows });
   }
 

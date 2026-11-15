@@ -1,4 +1,3 @@
-//const { renderFile } = require("ejs");
 
    async function call(){
    try {
@@ -65,30 +64,6 @@
    const card_cost = document.createElement('p');
    card_cost.textContent = cost;
 
-  /*
-  const card_allergens =  document.createElement('p');
-   card_allergens.textContent = allergens;
-
-  const card_kilojoules =  document.createElement('p');
-   card_kilojoules.textContent = kilojoules;
-
-  const card_vitamis =  document.createElement('p');
-   card_vitamis.textContent = vitamins;
-
-  const card_stock =  document.createElement('p');
-   card_stock.textContent = stock;
-
-  const card_discount =  document.createElement('p');
-   card_discount.textContent = discount;
-
-  const card_image =  document.createElement('p');
-   card_image.textContent = image_path;
-
-
-  const card_kilograms =  document.createElement('p');
-   card_kilograms.textContent = kilograms;
-  */
-
    // Create the image
    const image = document.createElement('img');
 
@@ -108,9 +83,6 @@
 
    product_details_button.className ='product-button-div';
     
-
-
-
    //product_side_div.append( card_name, card_description, card_cost,card_kilograms, card_allergens,card_kilojoules,card_vitamis,card_stock,card_discount );
    product_side_div.append( card_name, card_description, card_cost, product_details_button);
 
@@ -134,12 +106,63 @@ async function getNotifications(){
 }*/
 
 
+  async function getNotifications(){
+
+     const notifiactionDiv = document.getElementById("notifications");
+     notifiactionDiv.innerHTML ="" ;
+
+
+      const response = await fetch("http://localhost:3010/notification");
+      const result = await response.json();
+      console.log("NOTIFICATION RESULT: ",result );
+
+
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed: ${response.status}`);
+      }
+      if (!Array.isArray(result)) {
+        throw new Error("The receipts service returned data in an unexpected format.");
+      }
+
+      const list = document.createElement("ul");
+
+      result.forEach((notification) => {
+
+      let listItem = document.createElement("li");
+
+        listItem.textContent =
+          ` Notification text: ${notification.text}, type:${notification.type} `;
+
+      let markReadButton= document.createElement("button");
+      markReadButton.textContent ="MARK AS READ";
+
+       markReadButton.addEventListener("click", async ()=>{
+        
+        await fetch(`http://localhost:3010/notification/${notification.id}`, {
+        method: "DELETE",
+          /* headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+
+        })*/
+       });
+
+      await getNotifications();
+    
+      });
 
 
 
+    listItem.appendChild(markReadButton)
 
+        list.appendChild(listItem);
+      });
+
+      notifiactionDiv.appendChild(list);
+
+  }
 
    call();
+   getNotifications()
    /*
    create();
    create();
