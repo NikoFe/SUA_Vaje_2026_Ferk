@@ -1,21 +1,16 @@
+
 async function login(event){
   event.preventDefault();
 
   console.log("LLLLLLL CALLING FUNCTION!!!");
 
-
-
    let username_input=  document.getElementById ("usename_input").value;
    let password_input=  document.getElementById ("password_input").value;
-
-
 
   if(!username_input || !password_input){
     alert("Please fill in all fields.");
     return;
   }
-
-
 
   console.log("LLLLLLL username: ", username_input);
   console.log("LLLLLLL password: ", password_input);
@@ -85,9 +80,6 @@ async function login(event){
 
         console.log("RETRIEVED: ",response.statusText )
 
-  //  const resultLength = await response.json();
-  //  console.log("RESULT LENGTH: ", resultLength);
-
    if(response.statusText =="OK"){
 
      //console.log("WORKING!!!!");
@@ -98,8 +90,7 @@ async function login(event){
       console.log("ALREADY!!!");
       alert("INVALID CREDENTIALS");
    }
-/////////////
-  //window.location.href = `http://localhost:3010/register`;
+
 }
 
 document.getElementById("loginToRegisterButton").addEventListener("click",()=>registerUser());

@@ -97,9 +97,6 @@
          document.getElementById("email_input").value = user.email;
         document.getElementById("password_input").value = user.password;
         
-        
-        
-        
         console.log("USER:", user);
        } catch (error) {
          console.error("Error loading user:", error);
@@ -198,8 +195,6 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
             status.textContent = error.message;
           }
         });
-
-
 
         items.appendChild(listItem);
         items.appendChild(remove_button);
@@ -501,7 +496,6 @@ try {
           document.createTextNode(
             `Shipment ID: ${shipment.id}, Receipt_ID: ${shipment.receipt_id}, User_ID: ${shipment.user_id}, \n Status: ${shipment.status},
             Shipment Location: "${shipment.location},Shipment target location: ${shipment.target_location}, start date: ${shipment.start_date} "
-            
             `
           )
         );

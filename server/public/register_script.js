@@ -3,8 +3,6 @@ async function register(event){
 
   console.log("RRRRRRRRRRR CALLING FUNCTION!!!");
 
-
-
    let username_input=  document.getElementById ("usename_input").value;
    let email_input=  document.getElementById ("email_input").value;
    let password_input=  document.getElementById ("password_input").value;

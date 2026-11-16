@@ -4,14 +4,8 @@ const mysql = require("mysql2/promise");
 const swaggerJsdoc = require ("swagger-jsdoc")
 const swaggerUi =require ("swagger-ui-express")
 
-
 const app = express();
 const PORT = 3001;
-
-/*
-app.get("/", (req, res) => {
-  res.send("Hello, Express!");
-});*/
 
 
 if (process.env.NODE_ENV === 'test') {
@@ -31,31 +25,6 @@ const dbConfig = {
 app.use(express.json());
 app.use(cors())
 
-///////////////////////////////////////
-
-//app.get('/store',async (req, res) => {
-
-/*
-app.get ('/',async (req, res) => {
-  res.render("store");
-})*/
-
-/*
-  app.get('/store',async (req, res) => {
- console.log("SSSSTORE!:")
-try {
-    const connection = (await mysql.createConnection(dbConfig));
-    //const [rows] = await connection.execute("SHOW TABLES");
-     console.log("B!:")
-    const [rows] = await connection.execute("SELECT * FROM product");
-    //await connection.end();
-    console.log("ROWS: ",rows)
-    res.json(rows);
-  } catch (error) {
-    console.error("Error getting products!", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-  })*/
 
   app.get('/',async (req, res) => {
  console.log("AAAAA!:")
@@ -109,9 +78,6 @@ app.get('/comments', async (req, res) => {
     }
 
   })
-
-
-
 
 app.get('/comments/:id', async (req, res) => {
     id= parseInt(req.params.id)
@@ -194,10 +160,7 @@ app.put('/:id', async (req, res) => {
 
         await connection.end();
 
-     //   console.log("OOOO user_has_meal_value SUCCESS");
 
-
-     ///|||/// 
 
         res.json({ message: "update success" });
 
@@ -210,17 +173,13 @@ app.put('/:id', async (req, res) => {
 
 
 app.delete('/:id', async(req, res) => {
-  //console.log("OOOO deleteMeal")
-  //console.log("delete gateway")
+
   const db = await mysql.createConnection(dbConfig);
   try {
 
   console.log(req.params)
    const {id } = req.params;
-   /*
-  const userId = parseInt(user_id.trim() , 10);
-  const mealId = parseInt(meal_id.trim() , 10)
-   */
+
 
   await db.execute(
     "DELETE FROM product WHERE id = ?",
@@ -287,7 +246,7 @@ console.log (JSON.stringify(req.body))
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+        await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -306,16 +265,6 @@ console.log (JSON.stringify(req.body))
 
 
         res.status(response.status).json(result);
-
-
-
-
-   // res.status(201).json({ message: 'Product created', id });
-
-
-
-
-
 
   } catch (error) {
     console.error('Error creating product:', error);

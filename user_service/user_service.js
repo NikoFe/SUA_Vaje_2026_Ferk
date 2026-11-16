@@ -23,21 +23,6 @@ const dbConfig = {
 app.use(express.json());
 app.use(cors());
 
-//app.get(/)
-
-/*
-app.get("/", async (req, res) => { 
-  connection = await mysql.createConnection(dbConfig);
-  const [rows] = await connection.execute(`SELECT * FROM  users`);
-
-  res.json(rows);
-});*/
-
-//app.get(/:id)
-
-
-
-
 ////////////////////////////////////////
 ///////////////////////////////////////
 /////////CARTS:////////////////////////
@@ -67,11 +52,10 @@ app.post("/cart", async (req, res) => { //**** */
     return "ERROR";
   }
 
-
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+     await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -89,7 +73,6 @@ app.post("/cart", async (req, res) => { //**** */
   console.log("element: ", rows[0]);
   res.json(rows[0]);
 
-  //res.status(201).json({ output: result });
 });
 
 app.get("/cart/:id", async (req, res) => {//*** */
@@ -126,7 +109,7 @@ app.delete("/cart/all/:user_id", async (req, res) => {//*** */
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+       await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -144,8 +127,6 @@ app.delete("/cart/all/:user_id", async (req, res) => {//*** */
   return res.json({ deleted: result.affectedRows });
 });
 
-
-
 app.delete("/cart/:id", async (req, res) => {//*** */
   const id = Number.parseInt(req.params.id, 10);
   const user_id = Number.parseInt(req.query.user_id, 10);
@@ -159,16 +140,15 @@ app.delete("/cart/:id", async (req, res) => {//*** */
     [id, user_id]
   );
 
-
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+        await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id:  user_id,
-                text: "CART ITEM SUCCESSFULY DELETE!",
+                text: "CART ITEM SUCCESSFULY DELETED!",
                 type: "CART ITEM DELETED",
                 marked_needed_to_delete: 0
          
@@ -212,7 +192,7 @@ app.put("/cart", async (req, res) => {//*** */
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+    await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -223,7 +203,7 @@ app.put("/cart", async (req, res) => {//*** */
          
             })
         });
-        const result = await response.json();
+    
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
@@ -341,36 +321,12 @@ app.post("/create", async (req, res) => { /*** */
             method: 'POST',
 
         });
-
-
-
-
-
-
-
 /////////////////////
-
 
     res.status(201).json({ output: rows });
   }
 
 });
-
-/* 
-app.delete("/:id", async (req, res) => { //NOT USED
-  id = parseInt(req.params.id);
-
-  let connection = await mysql.createConnection(dbConfig);
-  const [rows] = await connection.execute(
-    `
-      UPDATE users
-SET deleted = "true"
-WHERE id = ?;
-      `,
-    [id],
-  );
-  res.json({ message: "success" });
-});*/
 
 
 app.put("/:id", async (req, res) => { /**** */
@@ -395,7 +351,7 @@ SET username =?, password = ?, email = ? WHERE id = ?
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const response = await fetch('http://localhost:3004/notification', {
+      await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -414,22 +370,6 @@ SET username =?, password = ?, email = ? WHERE id = ?
 
 });
 
-/*
-app.put("/admin/:id", async (req, res) => { //NOT USED
-  id = parseInt(req.params.id);
-
-     let connection = await mysql.createConnection(dbConfig);
-    const [rows]= await connection.execute(
-      `
-      UPDATE users
-SET status = "admin" WHERE id = ?
-      `,
-      [id]
-    );
-  res.json({ message: "success" });
-
-});
-*/
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

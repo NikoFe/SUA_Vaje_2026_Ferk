@@ -48,7 +48,6 @@ async function call() {
 
 async function deleteProduct(id) {
 
-  //console.log("DEL")
   const response = await fetch(`http://localhost:3010/single_product/${id}`, {
     method: "DELETE",
   });
@@ -226,15 +225,11 @@ function create(
 async function deleteComment(commentId) {
   try {
 
-
- // console.log("DDDDDDDELLL: ",  commentId);
-
     const response = await fetch(
       `http://localhost:3010/comments/${commentId}`,
       {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-      
       },
     );
 
@@ -435,8 +430,6 @@ async function addToCart() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_id, product_name, amount }),
       });
-
-      //alert("ADDED TO CART!");
 
 
       if (!createResponse.ok) {

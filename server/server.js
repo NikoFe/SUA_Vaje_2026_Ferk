@@ -108,9 +108,6 @@ app.get("/profile", (req, res) => {
 });
 
 
-
-
-
 app.get('/update/:id', async (req, res) => {
     const productId = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(productId)) {
@@ -195,22 +192,12 @@ app.delete("/single_product/:id", async (req, res) => {
           method: "DELETE"
         });
 
-        // Convert the response body into JavaScript objects
-
-        //const products = await response.json();
-
-       // console.log('SERVER DELETE response:', response);
-
-        // Return the JSON data to the browser
-       // res.json(products);
-
         res.send("SUCCESS!")
 
 });
 
 app.get('/store/products/:id', async (req, res) => {
-    id= parseInt(req.params.id)
-  //  console.log("URL id: ||", id,"||")
+    id= parseInt(req.params.id);
 
     }  )
 
@@ -249,12 +236,8 @@ PUT
 
 app.put('/store/products/:id', async (req, res) => {
 
-    console.log("UPDATE!!!!!!!!")
-    id= parseInt(req.params.id)
-
-   // console.log("ID ID ID:"+id);
-    //console.log("req.body:"+JSON.stringify(req.body));
-
+    console.log("UPDATE!!!!!!!!");
+    id= parseInt(req.params.id);
 
     try {
         const response = await fetch(`http://localhost:3001/${id}`, {
@@ -263,9 +246,6 @@ app.put('/store/products/:id', async (req, res) => {
             body: JSON.stringify(req.body)
         });
         console.log("BBBBBBBBB")
-        //console.log("RESPONSE: ", response)
-
-
 
         const result = await response.json();
         res.status(response.status).json(result);
@@ -307,10 +287,6 @@ app.get("/comments/", async (req, res) => {
         res.status(502).json({ error: 'service unavailable' });
     }
 });
-
-
-
-
 
 app.get("/comments/:id", async (req, res) => {
     try {
@@ -357,8 +333,6 @@ app.put('/comments/:id', async (req, res) => {
 
     console.log ("COMMENTS IDIDIDIDID: ",req.params.id );
 
-    
-     // console.log ("REQ BODY : ",req.body );
     try {
       //  const response = await fetch(`http://localhost:3001/comments/${encodeURIComponent(req.params.id)}`, {
             const response = await fetch(`http://localhost:3001/comments/${req.params.id}`, {
@@ -723,8 +697,6 @@ app.delete("/user/cart/", async (req, res) => {
 
   const id = Number.parseInt(req.params.id, 10);
 
-    
-
         const response = await fetch("http://localhost:3003/shipment/"+req.session.userId,{
      
         });
@@ -732,12 +704,6 @@ app.delete("/user/cart/", async (req, res) => {
         console.log("SHIPMENT GET RESULT: ",result );
         return res.status(response.status).json(result);
 
-
-        /*
-    } catch (error) {
-        console.error("Error contacting payment service for receipt item:", error);
-        return res.status(502).json({ error: "Payment service unavailable" });
-    }*/
  });
 
 app.put("/shipment/:shipment_id", async (req, res) => {
@@ -871,15 +837,9 @@ app.get("/notification", async (req, res) => {
         return res.status(502).json({ error: "Notification service unavailable" });
     }
     
-    /*
-    return forwardNotificationRequest(
-        res,
-        `/notification/${encodeURIComponent(userId)}`
-    );*/
 });
 
 app.delete("/notification/:notification_id", async (req, res) => {
-
 
     console.log("CALLING DELETE NOTIFICATIONS");
     const userId= parseInt(req.session.userId);
@@ -897,11 +857,7 @@ app.delete("/notification/:notification_id", async (req, res) => {
          { method: "DELETE",
            body: JSON.stringify({user_id: req.session.userId})
 
-
-
              }
-
-
         );
 
         const result = await response.json();
@@ -913,9 +869,6 @@ app.delete("/notification/:notification_id", async (req, res) => {
         console.error("Error contacting payment service for receipts:", error);
         return res.status(502).json({ error: "Payment service unavailable" });
     }
-
-
-
     ///WIP HERE!
     /*
     return forwardNotificationRequest(
@@ -924,10 +877,6 @@ app.delete("/notification/:notification_id", async (req, res) => {
         { method: "DELETE" }
     );*/
 });
-
-
-
-
 
 app.get("/notification_preferences",async (req, res) => {
 
@@ -970,9 +919,6 @@ app.put("/notification_preferences", async (req, res) => {
 
         );
 
-
-
-
     /*
     return forwardNotificationRequest(
         res,
@@ -984,12 +930,7 @@ app.put("/notification_preferences", async (req, res) => {
         }
     );*/
 
-
 });
-
-
-
-
 
 app.get("/session_id" , async (req, res )=>{
 
