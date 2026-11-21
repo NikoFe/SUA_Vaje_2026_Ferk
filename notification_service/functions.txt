@@ -3,16 +3,13 @@ I want you to implement the following my notification_service.js endpoints:
 
 
 
-POST notification_preferences/user_id  create user preference for notification
 
 
 DELETE notification_preferences/
 
-PUT   notification_preferences/
 
+WIP PUT    notification_preferences/ (reset all to true)
 
-
-GET notification_preferences/  
 
 ////////////////////////////////////////////////////////////////////// COMPLETED:
 
@@ -21,6 +18,12 @@ DELETE notification/notification_id   after the user marks it as read.
 POST notification/user_id      create notification to a specific user_id
 
 GET notification/user_id        get the current user notifications and show it
+
+POST notification_preferences/user_id  create user preference for notification
+
+PUT   notification_preferences/
+
+GET notification_preferences/  
 
 
 /////////////////////////////////////

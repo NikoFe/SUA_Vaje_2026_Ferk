@@ -175,14 +175,20 @@ app.delete("/notification/:notification_id", async (req, res) => {
   }
 });
 
-app.put("/notification_preference/:user_id", async (req, res) => {
+
+app.put("/notification_preference/toggle/:user_id", async (req, res) => {
+  console.log("////////////////// TOGGLING NOTIFICATION TYPE! ///////////////7");
   const userId = Number(req.params.user_id);
-  const type = typeof req.body?.type;
+  //const type = typeof req.body?.type;
+
+  const type =  req.body?.type;
+
 
 
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
+    console.log("1");
     const [rows] = await connection.execute(
       "SELECT ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
       [userId],
@@ -191,6 +197,8 @@ app.put("/notification_preference/:user_id", async (req, res) => {
       return res.status(404).json({ error: "Notification preferences not found" });
     }
 
+    console.log("11");
+    console.log("NOTIFICATION TYPE: ", type);
     const ignoredTypes = rows[0].ignored_types;
     if (typeof ignoredTypes !== "string") {
       return res.status(500).json({ error: "Stored notification preferences are invalid" });
@@ -207,7 +215,7 @@ app.put("/notification_preference/:user_id", async (req, res) => {
     if (entryIndex === -1) {
       return res.status(400).json({ error: "Unknown notification type" });
     }
-
+   console.log("2");
     const separator = entries[entryIndex].lastIndexOf(":");
     const currentValue = entries[entryIndex].slice(separator + 1).trim().toLowerCase();
     if (currentValue !== "true" && currentValue !== "false") {
@@ -217,6 +225,7 @@ app.put("/notification_preference/:user_id", async (req, res) => {
       `${entries[entryIndex].slice(0, separator)}:${currentValue === "true" ? "false" : "true"}`;
 
     const updatedIgnoredTypes = entries.join(",");
+    console.log("3");
     await connection.execute(
       "UPDATE notification_preference SET ignored_types = ? WHERE user_id = ?",
       [updatedIgnoredTypes, userId],
@@ -241,65 +250,6 @@ app.put("/notification_preference/:user_id", async (req, res) => {
 
 
 
-/*
-app.delete("/notification/:notification_id", async (req, res) => {
-  console.log("CALLING DELETE DDDDDDDDDDD");
-  //  const userId =req.body.user_id;
-   const notification_id= parseInt( req.params.notification_id);
-
-
-  //const userId = getUserId(req);
-  if (!notification_id) {
-    return res.status(400).json({ error: "A valid notification_id is required" });
-  }
-
-  let connection;
-  try {
-    connection = await mysql.createConnection(dbConfig);
-    const [result] = await connection.execute(
-      "DELETE FROM notification WHERE notification_id = ?",
-      [notification_id]
-    );
-    return res.json({ deleted: result.affectedRows });
-  } catch (error) {
-    console.error("Error deleting notifications:", error);
-    return res.status(500).json({ error: "Unable to delete notifications" });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
-  }
-});
-*/
-
-/*
-app.delete("/notification", async (req, res) => {
-  console.log("CALLING DELETE DDDDDDDDDDD");
-    const userId =req.body.user_id;
-  //const userId = getUserId(req);
-  if (!userId) {
-    return res.status(400).json({ error: "A valid user_id is required" });
-  }
-
-  let connection;
-  try {
-    connection = await mysql.createConnection(dbConfig);
-    const [result] = await connection.execute(
-      "DELETE FROM notification WHERE user_id = ?",
-      [userId]
-    );
-    return res.json({ deleted: result.affectedRows });
-  } catch (error) {
-    console.error("Error deleting notifications:", error);
-    return res.status(500).json({ error: "Unable to delete notifications" });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
-  }
-});
-*/
-
 app.post("/notification_preferences/:user_id", async (req, res) => {
   console.log("CREATING NOTIFICATION PREFERENCES ~~~~~~~~~~~~");
   const userId = parseInt(req.params.user_id);
@@ -317,7 +267,7 @@ app.post("/notification_preferences/:user_id", async (req, res) => {
 
     const [rows] = await connection.execute(
       // "SELECT id, user_id, marked_needed_to_delete, ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
-      "INSERT INTO notification_preference (id, user_id, ignored_types) VALUES (?, ?, 'USER CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false')",
+      "INSERT INTO notification_preference (id, user_id, ignored_types) VALUES (?, ?, 'USER CREATED:false,COMMENT CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false')",
       [id, userId],
     );
 
@@ -369,6 +319,81 @@ app.get(["/notification_preferences/:user_id"], async (req, res) => {
     }
   }
 });
+
+
+async function setAllIgnoredTypes(userId, ignored) {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      "SELECT ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
+      [userId],
+    );
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const updatedIgnoredTypes = rows[0].ignored_types
+      .split(",")
+      .map((entry) => {
+        const separator = entry.lastIndexOf(":");
+        const currentValue = entry.slice(separator + 1).trim().toLowerCase();
+        if (
+          separator === -1 ||
+          (currentValue !== "true" && currentValue !== "false")
+        ) {
+          throw new Error("Stored notification preferences are invalid");
+        }
+        return `${entry.slice(0, separator)}:${ignored}`;
+      })
+      .join(",");
+
+    await connection.execute(
+      "UPDATE notification_preference SET ignored_types = ? WHERE user_id = ?",
+      [updatedIgnoredTypes, userId],
+    );
+    return updatedIgnoredTypes;
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
+app.delete("/notification_preferences/:user_id", async (req, res) => {
+  console.log("RESETTING NOTIFICATION PREFERENCES TO FALSE");
+  const userId = Number(req.params.user_id);
+
+  try {
+    const ignoredTypes = await setAllIgnoredTypes(userId, false);
+    if (ignoredTypes === null) {
+      return res.status(404).json({ error: "Notification preferences not found" });
+    }
+    return res.json({ user_id: userId, ignored_types: ignoredTypes });
+  } catch (error) {
+    console.error("Error resetting notification preferences:", error);
+    return res.status(500).json({ error: "Unable to reset notification preferences" });
+  }
+});
+
+app.put("/notification_preferences/enable_all/:user_id", async (req, res) => {
+  console.log("RESETTING NOTIFICATION PREFERENCES TO TRUE");
+  const userId = Number(req.params.user_id);
+
+
+  try {
+    const ignoredTypes = await setAllIgnoredTypes(userId, true);
+    if (ignoredTypes === null) {
+      return res.status(404).json({ error: "Notification preferences not found" });
+    }
+    return res.json({ user_id: userId, ignored_types: ignoredTypes });
+  } catch (error) {
+    console.error("Error resetting notification preferences:", error);
+    return res.status(500).json({ error: "Unable to reset notification preferences" });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Notification service is running on http://localhost:${PORT}`);
