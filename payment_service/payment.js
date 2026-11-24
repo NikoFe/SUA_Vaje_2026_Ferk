@@ -54,150 +54,121 @@ function randomLocation() {
 //COMMUNICATION//
 //THIS IS WHERE CHECKOUT HAPPENS
 app.post("/receipt/:user_id", async (req, res) => {
+  const userId = parseId(req.params.user_id);
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
 
-
-  console.log("CREATING RECEIPTS!");
-  //GET USER CART AND CHECK IF IT IS NOT EMPTY
-
- //const userId2=parseInt(req.params.user_id);
-
-  const userId  =parseInt(req.params.user_id);
-
-
-  //const cartResponse = await fetch("/user/cart");
-  const response = await fetch(`http://localhost:3002/cart/${encodeURIComponent(userId)}`);
+  try {
+  const response = await fetch(
+    `${userServiceUrl}/cart/${encodeURIComponent(userId)}`,
+  );
   //const result = await response.json();
   //return res.status(response.status).json(result);
 
   if (!response.ok) {
-   // throw new Error(cartItems.error || "Unable to load cart items for checkout.");
-   console.error("FAILED TO GET CART ITEMS!");
-     return res.status(400).json({message: "Unable to load cart items for checkout."});
+    console.error("Failed to get cart items:", response.status);
+    return res.status(502).json({ error: "Unable to load cart items" });
   }
 
- const cartItems = await response.json();
-
+  const cartItems = await response.json();
+  if (!Array.isArray(cartItems)) {
+    return res.status(502).json({ error: "Cart service returned invalid data" });
+  }
 
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
-  return res.status(400).json({message: "Your cart is empty."});
+    return res.status(400).json({ error: "Your cart is empty" });
    // throw new Error("Your cart is empty.");
   }
 
   //FROM THE CART, CHECK FOR EACH PRODUCT IN STORE EXISTS AND HAS A HIGH ENOUGH STOCK COUNT
 
- let totalMoneyAmount=0;
+  let totalMoneyAmount = 0;
+  let totalAmount = 0;
   for (const item of cartItems) {
-  
-    console.log("CARTITEM: ",item );
-    console.log("CARTITEM PRODUCT ID: ",item.product_id );
-    console.log("CARTITEM AMOUNT: ",item.amount );
-    
-  const individualResponse = await fetch(`http://localhost:3001/${encodeURIComponent(item.product_id)}`);
-
-  const product = await individualResponse.json();
-
-  console.log("PRODUCT: ",product );
-  console.log("PRODUCT FIRST: ",product[0] );
-  console.log("PRODUCT STOCK: ",product[0].stock );
-  if(item.amount > product[0].stock ){
-
-    console.error("NOT ENOUGH IN STOCK!");
-    return res.status(400).json({message: "not enough items in stock!"});
-  }
-
-totalMoneyAmount+=product[0].cost*item.amount;
-
-  }
-
-
-  /*
-  for (const item of cartItems) {
-    const itemResponse = await fetch("/receipt_item", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product_id: item.product_id,
-        receipt_id: receiptId,
-        amount: item.amount,
-      }),
-    });
-    const itemResult = await itemResponse.json();
-    if (!itemResponse.ok) {
-      throw new Error(itemResult.error || `Unable to save ${item.product_name} to the receipt.`);
+    const productId = parseId(item.product_id);
+    const amount = parseId(item.amount);
+    if (!productId || !amount) {
+      return res.status(502).json({ error: "Cart service returned invalid items" });
     }
-  }*/
 
-    let totalAmount= 0;
+    const individualResponse = await fetch(
+      `http://localhost:3001/${encodeURIComponent(productId)}`,
+    );
+    if (individualResponse.status === 404) {
+      return res.status(409).json({ error: "A product in your cart no longer exists" });
+    }
+    if (!individualResponse.ok) {
+      return res.status(502).json({ error: "Store service unavailable" });
+    }
 
-  //REDUCE STOCK COUNT
+    const products = await individualResponse.json();
+    const product = Array.isArray(products) ? products[0] : null;
+    if (
+      !product ||
+      !Number.isFinite(Number(product.stock)) ||
+      !Number.isFinite(Number(product.cost))
+    ) {
+      return res.status(502).json({ error: "Store service returned invalid data" });
+    }
+    if (amount > Number(product.stock)) {
+      return res.status(409).json({ error: "Not enough items in stock" });
+    }
+
+    totalAmount += amount;
+    totalMoneyAmount += Number(product.cost) * amount;
+  }
+
+  if (
+    !Number.isSafeInteger(totalAmount) ||
+    totalAmount <= 0 ||
+    !Number.isFinite(totalMoneyAmount) ||
+    totalMoneyAmount <= 0
+  ) {
+    return res.status(400).json({ error: "Cart totals are invalid" });
+  }
+
+
   for (const item of cartItems) {
-  
-    console.log("CARTITEM: ",item );
-    console.log("CARTITEM PRODUCT ID: ",item.product_id );
-    console.log("CARTITEM AMOUNT: ",item.amount );
-    totalAmount += item.amount ;
-    //totalMoneyAmount  += item.amount*item.cost;
+    const productId = parseId(item.product_id);
+    const amount = parseId(item.amount);
+    const individualResponse = await fetch(
+      `http://localhost:3001/${encodeURIComponent(productId)}`,
+    );
+    if (!individualResponse.ok) {
+      return res.status(502).json({ error: "Store service unavailable" });
+    }
 
+    const products = await individualResponse.json();
+    const product = Array.isArray(products) ? products[0] : null;
+    if (!product || !Number.isFinite(Number(product.stock))) {
+      return res.status(502).json({ error: "Store service returned invalid data" });
+    }
 
-  const individualResponse = await fetch(`http://localhost:3001/${encodeURIComponent(item.product_id)}`);
+    const updatedStock = await fetch(
+      `http://localhost:3001/stock/${encodeURIComponent(productId)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_amount: Number(product.stock) - amount,
+        }),
+      },
+    );
+    if (!updatedStock.ok) {
+      console.error("Error updating stock:", updatedStock.status);
+      return res.status(502).json({ error: "Unable to update stock" });
+    }
+  }
 
-  const product = await individualResponse.json();
-
-   //UPDATE THE STOCK COUNT
-  const newAmount =product[0].stock- item.amount;
-
-  const updatedStock = await fetch(`http://localhost:3001/stock/${encodeURIComponent(item.product_id)}`,{
-
-          method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              new_amount: newAmount
-            })
-  });
-
- if(!updatedStock.ok){
-     console.error( "ERROR UPDATING STOCK.");
-     return res.status(400).json({message: "ERROR UPDATING STOCK."});
- }
-
-  //CLEAR THE USERS CART
- 
   const deleteResponse = await fetch(
-        //  `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
-         // `http://localhost:3002/cart/user_id=${encodeURIComponent(userId)}`,
-         `http://localhost:3002/cart/${encodeURIComponent(userId)}`,
-          {
-          method: "DELETE"
-          }
-      );
-  console.log("DELETE RESPONSE: ",deleteResponse );
-  if(!deleteResponse.ok){
-    console.error("ERROR IN DELETING!: ",deleteResponse);
-    return res.status(400).json({message: "error deleting product"});
+    `${userServiceUrl}/cart/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+  if (!deleteResponse.ok) {
+    console.error("Error clearing cart:", deleteResponse.status);
+    return res.status(502).json({ error: "Unable to clear cart" });
   }
-  /*
-  console.log("PRODUCT: ",product );
-  console.log("PRODUCT FIRST: ",product[0] );
-  console.log("PRODUCT STOCK: ",product[0].stock );
-  */
-  /*
-  if(item.amount > product[0].stock ){
-
-    console.error("NOT ENOUGH IN STOCK!");
-    return res.status(400).json({message: "not enough items in stock!"});
-  }
-  */
-  }
-
-
-  console.log("TOTAL AMOUNT: ", totalAmount);
-  console.log("TOTAL MONEY AMOUNT: ", totalMoneyAmount);
-
- // const totalAmount = Number(req.body.amount);
-  if (!userId || !Number.isFinite(totalAmount) || totalAmount <= 0) {
-    return res.status(400).json({ error: "Valid user_id and amount are required" });
-  }
-  console.log("-------------------APPLES AND ORANGES----------------------");
 
   const id = randomInt(1, 2147483647);
   let connection;
@@ -211,17 +182,26 @@ totalMoneyAmount+=product[0].cost*item.amount;
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-      await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  userId,
-                text: "RECEIPT SUCCESSFULY CREATED!",
-                type: "RECEIPT CREATION",
-                marked_needed_to_delete: 0
-         
-            })
+      try {
+        const notificationResponse = await fetch("http://localhost:3004/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            text: "RECEIPT SUCCESSFULY CREATED!",
+            type: "RECEIPT CREATION",
+            marked_needed_to_delete: 0,
+          }),
         });
+        if (!notificationResponse.ok) {
+          console.error(
+            "Notification service rejected receipt notification:",
+            notificationResponse.status,
+          );
+        }
+      } catch (notificationError) {
+        console.error("Unable to notify about receipt creation:", notificationError);
+      }
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
@@ -242,9 +222,17 @@ totalMoneyAmount+=product[0].cost*item.amount;
       await connection.end();
     }
   }
+  } catch (error) {
+    console.error("Error contacting checkout services:", error);
+    return res.status(502).json({ error: "Checkout service unavailable" });
+  }
 });
 
 app.post("/receipt_item/", async (req, res) => {
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ error: "A JSON request body is required" });
+  }
+
   const productId = parseId(req.body.product_id);
   const receiptId = parseId(req.body.receipt_id);
   const amount = parseId(req.body.amount);
@@ -275,13 +263,12 @@ app.post("/receipt_item/", async (req, res) => {
 });
 
 app.post("/shipment", async (req, res) => {
-  console.log("SHIPMENT CREATION");
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ error: "A JSON request body is required" });
+  }
+
   const userId = parseId(req.body.user_id);
   const receiptId = parseId(req.body.receipt_id);
-
-    console.log("SHIPMENT CREATION UserID: "+userId  );
-    console.log("SHIPMENT CREATION receiptId: "+receiptId  );
-
 
   if (!userId || !receiptId) {
     return res.status(400).json({ error: "Valid user_id and receipt_id are required" });
@@ -298,40 +285,36 @@ app.post("/shipment", async (req, res) => {
       return res.status(404).json({ error: "Receipt not found for this user" });
     }
 
-  const id = randomInt(1, 2147483647);
-
-
-     //const [rows] = await mysql.createConnection(dbConfig);
-   const [rows]= await connection.execute(
+    const id = randomInt(1, 2147483647);
+    await connection.execute(
       `INSERT INTO shipment
          (id, user_id, receipt_id, status, start_date, location, target_location)
        VALUES (?, ?, ?, 'BEING DELIVERED', NOW(), ?, ?)`,
-
-
-   //   [userId, receiptId, randomLocation(), targetLocations[randomInt(targetLocations.length)]]
-   [id, userId, receiptId, randomLocation(), randomLocation()]
+      [id, userId, receiptId, randomLocation(), randomLocation()],
     );
-  console.log("SHIPMENT CREATION DONE");
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-      await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  userId,
-                text: "SHIPMENT STARTED!",
-                type: "SHIPMENT START",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    try {
+      const notificationResponse = await fetch("http://localhost:3004/notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          text: "SHIPMENT STARTED!",
+          type: "SHIPMENT START",
+          marked_needed_to_delete: 0,
+        }),
+      });
+      if (!notificationResponse.ok) {
+        console.error(
+          "Notification service rejected shipment notification:",
+          notificationResponse.status,
+        );
+      }
+    } catch (notificationError) {
+      console.error("Unable to notify about shipment creation:", notificationError);
+    }
 
-   return res.status(201).json(rows);
+    return res.status(201).json({ id, user_id: userId, receipt_id: receiptId });
 
   } catch (error) {
     console.error("Error creating shipment:", error);
@@ -344,12 +327,11 @@ app.post("/shipment", async (req, res) => {
 });
 
 app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
-
-  console.log("CALLING DELETE");
   const shipmentId = parseId(req.params.shipment_id);
   if (!shipmentId) {
     return res.status(400).json({ error: "Invalid shipment ID" });
   }
+  const userId = parseId(req.body && req.body.user_id);
 
   let connection;
   try {
@@ -368,27 +350,30 @@ app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
       }
     }
 
-   console.log("CANCEL USER ID: ", req.body.user_id);
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-         await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  req.body.user_id,
-                text: "SHIPMENT SUCCESSFULY CANCELLED!",
-                type: "SHIPMENT CANCEL",
-                marked_needed_to_delete: 0
-         
-            })
+    if (userId) {
+      try {
+        const notificationResponse = await fetch("http://localhost:3004/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            text: "SHIPMENT SUCCESSFULY CANCELLED!",
+            type: "SHIPMENT CANCEL",
+            marked_needed_to_delete: 0,
+          }),
         });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+        if (!notificationResponse.ok) {
+          console.error(
+            "Notification service rejected cancellation notification:",
+            notificationResponse.status,
+          );
+        }
+      } catch (notificationError) {
+        console.error("Unable to notify about shipment cancellation:", notificationError);
+      }
+    }
 
-    return res.json({ shipment_id: shipmentId, status: "CANCELLED" });
-
+    return res.status(200).json({ shipment_id: shipmentId, status: "CANCELLED" });
 
   } catch (error) {
     console.error("Error cancelling shipment:", error);
@@ -402,14 +387,21 @@ app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
 
 app.put("/shipment/:shipment_id", async (req, res) => {
   const shipmentId = parseId(req.params.shipment_id);
-  //const status = typeof req.body.status === "string" ? req.body.status.trim() : "";
-  const location = typeof req.body.location === "string" ? req.body.location.trim() : "";
+  if (!shipmentId) {
+    return res.status(400).json({ error: "A valid shipment ID is required" });
+  }
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ error: "A JSON request body is required" });
+  }
+
+  const location =
+    typeof req.body.location === "string" ? req.body.location.trim() : "";
   const targetLocation =
     typeof req.body.target_location === "string" ? req.body.target_location.trim() : "";
-
-  if (!shipmentId /*|| !status*/ || !location || !targetLocation) {
+  const userId = parseId(req.body.user_id);
+  if (!location || !targetLocation) {
     return res.status(400).json({
-      error: "A valid shipment ID, status, location, and target location are required",
+      error: "A location and target_location are required",
     });
   }
 
@@ -417,41 +409,44 @@ app.put("/shipment/:shipment_id", async (req, res) => {
   try {
     connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-    //  "UPDATE shipment SET status = ?, location = ?, target_location = ? WHERE id = ?",
-    "UPDATE shipment SET location = ?, target_location = ? WHERE id = ?",
-      [/*status,*/ location, targetLocation, shipmentId]
+      "UPDATE shipment SET location = ?, target_location = ? WHERE id = ?",
+      [location, targetLocation, shipmentId],
     );
     if (result.affectedRows === 0) {
       const [shipments] = await connection.execute(
         "SELECT id FROM shipment WHERE id = ? LIMIT 1",
-        [shipmentId]
+        [shipmentId],
       );
       if (shipments.length === 0) {
         return res.status(404).json({ error: "Shipment not found" });
       }
     }
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  req.body.user_id,
-                text: "SHIPMENT SUCCESSFULY UPDATED!",
-                type: "SHIPMENT UPDATE",
-                marked_needed_to_delete: 0
-         
-            })
+    if (userId) {
+      try {
+        const notificationResponse = await fetch("http://localhost:3004/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            text: "SHIPMENT SUCCESSFULY UPDATED!",
+            type: "SHIPMENT UPDATE",
+            marked_needed_to_delete: 0,
+          }),
         });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+        if (!notificationResponse.ok) {
+          console.error(
+            "Notification service rejected update notification:",
+            notificationResponse.status,
+          );
+        }
+      } catch (notificationError) {
+        console.error("Unable to notify about shipment update:", notificationError);
+      }
+    }
 
-    return res.json({
+    return res.status(200).json({
       shipment_id: shipmentId,
-      //status,
       location,
       target_location: targetLocation,
     });
@@ -465,103 +460,159 @@ app.put("/shipment/:shipment_id", async (req, res) => {
   }
 });
 
-app.get("/shipment/:user_id", async (req, res)=>{
-  
-  const id = Number.parseInt(req.params.user_id, 10);
+app.get("/shipment/:user_id", async (req, res) => {
+  const userId = parseId(req.params.user_id);
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
 
-  console.log("IIIIIIIIIID: ", id);
-      connection = await mysql.createConnection(dbConfig);
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(
-      "SELECT * FROM shipment WHERE user_id= ?",
-      [id]
+      "SELECT * FROM shipment WHERE user_id = ?",
+      [userId],
     );
 
-  res.json(rows);
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error getting shipments:", error);
+    return res.status(500).json({ error: "Unable to get shipments" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 });
 
-  app.get("/receipts/:user_id" , async (req, res)=>{
+app.get("/receipts/:user_id", async (req, res) => {
+  const userId = parseId(req.params.user_id);
+  if (!userId) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
 
-  const user_id = Number.parseInt(req.params.user_id, 10);
-
-  console.log("USER ID RECEIPTS: ", user_id);
-      connection = await mysql.createConnection(dbConfig);
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(
-      "SELECT * FROM receipt WHERE user_id= ?",
-      [user_id]
+      "SELECT * FROM receipt WHERE user_id = ?",
+      [userId],
     );
 
-  res.json(rows);
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error getting receipts:", error);
+    return res.status(500).json({ error: "Unable to get receipts" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 });
 
+app.put("/shipment/restart/:shipment_id", async (req, res) => {
+  const shipmentId = parseId(req.params.shipment_id);
+  if (!shipmentId) {
+    return res.status(400).json({ error: "A valid shipment_id is required" });
+  }
+  const userId = parseId(req.body && req.body.user_id);
 
-app.put("/shipment/restart/:shipment_id", async (req, res)=>{
-  
-  const shipment_id = Number.parseInt(req.params.shipment_id, 10);
-
-  console.log("RESTART STATUS: ", shipment_id);
-      connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute(
-      "UPDATE shipment SET status=?, start_date = NOW() WHERE id= ?",
-      ["BEING_DELIVERED", shipment_id]
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "UPDATE shipment SET status = ?, start_date = NOW() WHERE id = ?",
+      ["BEING_DELIVERED", shipmentId],
     );
+    if (result.affectedRows === 0) {
+      const [shipments] = await connection.execute(
+        "SELECT id FROM shipment WHERE id = ? LIMIT 1",
+        [shipmentId],
+      );
+      if (shipments.length === 0) {
+        return res.status(404).json({ error: "Shipment not found" });
+      }
+    }
 
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  req.body.user_id,
-                text: "SHIPMENT SUCCESSFULY RESTARTED!",
-                type: "SHIPMENT RESTART",
-                marked_needed_to_delete: 0
-         
-            })
+    if (userId) {
+      try {
+        const notificationResponse = await fetch("http://localhost:3004/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            text: "SHIPMENT SUCCESSFULY RESTARTED!",
+            type: "SHIPMENT RESTART",
+            marked_needed_to_delete: 0,
+          }),
         });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+        if (!notificationResponse.ok) {
+          console.error(
+            "Notification service rejected restart notification:",
+            notificationResponse.status,
+          );
+        }
+      } catch (notificationError) {
+        console.error("Unable to notify about shipment restart:", notificationError);
+      }
+    }
 
-
-
-  res.json(rows);
+    return res.status(200).json({
+      shipment_id: shipmentId,
+      status: "BEING_DELIVERED",
+    });
+  } catch (error) {
+    console.error("Error restarting shipment:", error);
+    return res.status(500).json({ error: "Unable to restart shipment" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 });
 
-app.delete("/shipment", async (req, res)=>{
-
-  //const current_time = req.body.current_time;
-
-      connection = await mysql.createConnection(dbConfig);
- await connection.execute(
-      "SET SQL_SAFE_UPDATES = 0;"
+app.delete("/shipment", async (req, res) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    await connection.execute("SET SQL_SAFE_UPDATES = 0");
+    const [result] = await connection.execute(
+      "DELETE FROM shipment WHERE start_date <= DATE_SUB(NOW(), INTERVAL 5 MINUTE)",
     );
 
-    const [rows] = await connection.execute(
-  "DELETE FROM shipment WHERE start_date <= DATE_SUB(NOW(), INTERVAL 5 MINUTE);"
-    );
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  req.body.user_id,
-                text: "SHIPMENT SUCCESSFULY RECIEVED!",
-                type: "SHIPMENT RECIEVED",
-                marked_needed_to_delete: 0
-         
-            })
+    const userId = parseId(req.body && req.body.user_id);
+    if (userId && result.affectedRows > 0) {
+      try {
+        const notificationResponse = await fetch("http://localhost:3004/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            text: "SHIPMENT SUCCESSFULY RECIEVED!",
+            type: "SHIPMENT RECIEVED",
+            marked_needed_to_delete: 0,
+          }),
         });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+        if (!notificationResponse.ok) {
+          console.error(
+            "Notification service rejected completion notification:",
+            notificationResponse.status,
+          );
+        }
+      } catch (notificationError) {
+        console.error("Unable to notify about completed shipments:", notificationError);
+      }
+    }
 
-  res.json(rows);
-
+    return res.status(200).json({ deleted: result.affectedRows });
+  } catch (error) {
+    console.error("Error deleting expired shipments:", error);
+    return res.status(500).json({ error: "Unable to delete expired shipments" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 });
 
 app.listen(PORT, () => {

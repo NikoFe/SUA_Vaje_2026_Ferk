@@ -522,6 +522,39 @@ app.put("/user/cart", async (req, res) => {
     }
 });
 
+////////////////////
+/*
+app.put("/user/get_by_product_id/cart", async (req, res) => {
+    const { userId } = req.session;
+    if (!userId) {
+        return res.status(401).json({ error: "Please log in to update your cart" });
+    }
+
+    console.log("UUUUUUUUSER user_id: ", userId);
+    console.log("UUUUUUUUSER product_id: ", req.body.product_id);
+    console.log("UUUUUUUUSER amount: ", req.body.amount);
+
+    try {
+        const response = await fetch(
+            `http://localhost:3002/cart`,
+            {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...req.body, user_id: userId })
+            }
+        );
+        console.log("CART UPDATE RESULT: ",response );
+        const result = await response.json();
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error("Error updating cart:", error);
+        return res.status(502).json({ error: "User service unavailable" });
+    }
+});*/
+
+
+///////////////////
+
 app.put("/user/:id", async(req,res) => {
 
     console.log("USER UPDATE!");

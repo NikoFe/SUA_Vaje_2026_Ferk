@@ -423,9 +423,16 @@ async function addToCart() {
     });
 
     const updateResult = await updateResponse.json();
+
+    console.log("UPDATE RESULT: ", updateResult);
+
     if (!updateResponse.ok) {
       throw new Error(updateResult.error || "Unable to check cart item");
     }
+
+
+  console.log("UPDATE RESULT COUNT: ", updateResult.count);
+
     if (!Number.isInteger(updateResult.count) || updateResult.count < 0) {
       throw new Error("Invalid cart lookup response");
     }
