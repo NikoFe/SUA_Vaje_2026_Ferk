@@ -9,4 +9,6 @@ have shipments auto delete if timer passes
 TELL THE USER IF THERE IS NOT ENOUGH STOCK during checkout!
 
 
+Check if req.body is not empty and includes every needed param for all endpoints
+
 

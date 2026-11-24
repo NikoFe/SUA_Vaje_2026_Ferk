@@ -27,54 +27,58 @@ app.use(cors());
 ///////////////////////////////////////
 /////////CARTS:////////////////////////
 
+app.post("/cart", async (req, res) => {
 
-app.post("/cart", async (req, res) => { //**** */
   console.log("cart creation in process");
-  const { user_id,  product_id, product_name, amount } = req.body;
+  const { user_id, product_id, product_name, amount } = req.body;
 
-  let connection;
+  try {
+    let connection;
 
-   const id = Math.floor(Math.random() * 100000);
-
-  connection = await mysql.createConnection(dbConfig);
-  const [rows] = await connection.execute(
-    `
+    const id = Math.floor(Math.random() * 100000);
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      `
     INSERT INTO cart_item VALUES (?,? ,?, ?, ?);
     `,
-    [id, user_id, product_id,product_name,amount ],
-  );
-  //const result = await response.json();
+      [id, user_id, product_id, product_name, amount],
+    );
 
-  if (rows.length == 0) {
-    // return  res.send("ERRROR")
-    return "ERROR";
+    if (rows.length == 0) {
+    return res.status(400).json({ error: "Error in creating cart" });
+      //return "ERROR";
+    }
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    await fetch("http://localhost:3004/notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user_id,
+        text: "ADDING NEW ELEMENT TO CART!",
+        type: "NEW CART ITEM",
+        marked_needed_to_delete: 0,
+      }),
+    });
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    console.log("element: ", rows[0]);
+    res.status(202).json(rows[0]);
+  } catch (error) {
+    console.error("Error creating cart:", error);
+    return res.status(500).json({ error: "Failed to create cart" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-     await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  user_id,
-                text: "ADDING NEW ELEMENT TO CART!",
-                type: "NEW CART ITEM",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-  console.log("element: ", rows[0]);
-  res.json(rows[0]);
-
 });
 
-app.get("/cart/:id", async (req, res) => {//*** */
-  
+app.get("/cart/:id", async (req, res) => {
+  //*** */
+
   console.log("GETTIGN CART ITEMS!");
   const id = parseInt(req.params.id);
   let connection;
@@ -83,15 +87,15 @@ app.get("/cart/:id", async (req, res) => {//*** */
     `
     SELECT * FROM cart_item WHERE user_id= ?;
     `,
-    [id]
+    [id],
   );
-  console.log("CCCCART: ", rows)
+  console.log("CCCCART: ", rows);
 
-    res.json(rows);
+  res.json(rows);
+});
 
-})
-
-app.get("/status/:user_id", async (req, res) => {//*** */
+app.get("/status/:user_id", async (req, res) => {
+  //*** */
   const id = Number(req.params.user_id);
   if (!Number.isSafeInteger(id) || id <= 0) {
     return res.status(400).json({ error: "A valid user_id is required" });
@@ -116,10 +120,10 @@ app.get("/status/:user_id", async (req, res) => {//*** */
       await connection.end();
     }
   }
-})
+});
 
-
-app.delete("/cart/all/:user_id", async (req, res) => {//*** */
+app.delete("/cart/all/:user_id", async (req, res) => {
+  //*** */
   console.log("DELETEING EVERYTHING FROM CART!");
   const user_id = Number.parseInt(req.params.user_id, 10);
   if (Number.isNaN(user_id)) {
@@ -129,39 +133,39 @@ app.delete("/cart/all/:user_id", async (req, res) => {//*** */
   const connection = await mysql.createConnection(dbConfig);
   const [result] = await connection.execute(
     "DELETE FROM cart_item WHERE user_id = ?",
-    [user_id]
+    [user_id],
   );
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  user_id,
-                text: "CART SUCCESSFULY CLEARED!",
-                type: "CART EMPTIED",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  await fetch("http://localhost:3004/notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: user_id,
+      text: "CART SUCCESSFULY CLEARED!",
+      type: "CART EMPTIED",
+      marked_needed_to_delete: 0,
+    }),
+  });
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
   return res.json({ deleted: result.affectedRows });
 });
 
-app.delete("/cart/single/:cart_item_id", async (req, res) => {//*** */
+app.delete("/cart/single/:cart_item_id", async (req, res) => {
+  //*** */
 
-  console.log ("SINGLE DELETE!");
+  console.log("SINGLE DELETE!");
 
   const user_id = Number.parseInt(req.params.cart_item_id);
 
-  console.log ("DELETING cart item id:!", user_id);
+  console.log("DELETING cart item id:!", user_id);
 
- /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
+  /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
     return res.status(400).json({ error: "Invalid cart item or user ID" });
   }*/
 
@@ -172,8 +176,7 @@ app.delete("/cart/single/:cart_item_id", async (req, res) => {//*** */
     [id, user_id]
     */
     "DELETE FROM cart_item WHERE id = ?",
-    [user_id]
-
+    [user_id],
   );
   console.log("DELETING RESULT : ", result);
   console.log("DELETING RESULT LENGTH: ", result.length);
@@ -181,19 +184,16 @@ app.delete("/cart/single/:cart_item_id", async (req, res) => {//*** */
   return res.json({ deleted: result.affectedRows });
 });
 
+app.delete("/cart/:user_id", async (req, res) => {
+  //*** */
 
-
-
-
-app.delete("/cart/:user_id", async (req, res) => {//*** */
-
-  console.log ("DDDDDELETING!");
+  console.log("DDDDDELETING!");
 
   const user_id = Number.parseInt(req.params.user_id);
 
-  console.log ("DELETING user id:!", user_id);
+  console.log("DELETING user id:!", user_id);
 
- /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
+  /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
     return res.status(400).json({ error: "Invalid cart item or user ID" });
   }*/
 
@@ -204,37 +204,36 @@ app.delete("/cart/:user_id", async (req, res) => {//*** */
     [id, user_id]
     */
     "DELETE FROM cart_item WHERE user_id = ?",
-    [user_id]
-
+    [user_id],
   );
   console.log("DELETING RESULT : ", result);
   console.log("DELETING RESULT LENGTH: ", result.length);
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  user_id,
-                text: "CART ITEM SUCCESSFULY DELETED!",
-                type: "CART ITEM DELETED",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  await fetch("http://localhost:3004/notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: user_id,
+      text: "CART ITEM SUCCESSFULY DELETED!",
+      type: "CART ITEM DELETED",
+      marked_needed_to_delete: 0,
+    }),
+  });
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
   return res.json({ deleted: result.affectedRows });
 });
 
 ////COMMUNICATION//// check product current amount
-app.put("/cart", async (req, res) => {//*** */
+app.put("/cart", async (req, res) => {
+  //*** */
 
-  const {user_id, product_id, amount } = req.body;
+  const { user_id, product_id, amount } = req.body;
 
   console.log("UUUUPDATING CART ITEM!!! user_id: ", user_id);
 
@@ -242,39 +241,36 @@ app.put("/cart", async (req, res) => {//*** */
   try {
     const [rows] = await connection.execute(
       "SELECT * FROM cart_item WHERE product_id = ? AND user_id = ?",
-      [product_id, user_id]
+      [product_id, user_id],
     );
 
-  console.log("UUUUP rows length: ", rows.length );
+    console.log("UUUUP rows length: ", rows.length);
 
     if (rows.length > 0) {
-      
       const currentAmount = rows[0].amount;
       const newAmount = currentAmount + amount;
       await connection.execute(
         "UPDATE cart_item SET amount = ? WHERE product_id = ? AND user_id = ?",
-        [newAmount, product_id, user_id]
+        [newAmount, product_id, user_id],
       );
 
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      await fetch("http://localhost:3004/notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user_id,
+          text: "CART SUCCESSFULY UPDATED!",
+          type: "CART UPDATE",
+          marked_needed_to_delete: 0,
+        }),
+      });
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-    await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id:  user_id,
-                text: "CART SUCCESSFULY UPDATED!",
-                type: "CART UPDATE",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-    
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+      ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
     }
 
     return res.json({ count: rows.length });
@@ -287,8 +283,8 @@ app.put("/cart", async (req, res) => {//*** */
 //////////////////////////////
 //////////////////////////////
 
-
-app.get("/:id", async (req, res) => {  //**** 
+app.get("/:id", async (req, res) => {
+  //****
   console.log("||||||||||| GETTING SINGLE USER!");
   const id = Number.parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
@@ -307,7 +303,8 @@ app.get("/:id", async (req, res) => {  //****
   res.json(rows[0]);
 });
 
-app.post("/validate", async (req, res) => { //*** */
+app.post("/validate", async (req, res) => {
+  //*** */
   console.log("validation in process");
   const { username, password } = req.body;
 
@@ -333,10 +330,10 @@ app.post("/validate", async (req, res) => { //*** */
   //res.status(201).json({ output: result });
 });
 
-app.post("/create", async (req, res) => { /*** */
+app.post("/create", async (req, res) => {
+  /*** */
   console.log("creation process");
-  const {id, username, email, password,user_id } = req.body;
-
+  const { id, username, email, password, user_id } = req.body;
 
   console.log("RRRRRRR:  ID: ", id);
   console.log("RRRRRRR:  USER ID: ", user_id);
@@ -366,78 +363,71 @@ app.post("/create", async (req, res) => { /*** */
       [id, username, password, email],
     );
 
-//////////////////////
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id:  id,
-                text: "USER SUCCESSFULY CREATED!",
-                type: "USER CREATED",
-                marked_needed_to_delete: 0
-         
-            })
-        });
+    //////////////////////
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    await fetch("http://localhost:3004/notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: id,
+        text: "USER SUCCESSFULY CREATED!",
+        type: "USER CREATED",
+        marked_needed_to_delete: 0,
+      }),
+    });
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
- fetch(`http://localhost:3004/notification_preferences/${id}`, {
-            method: 'POST',
-
-        });
-/////////////////////
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    fetch(`http://localhost:3004/notification_preferences/${id}`, {
+      method: "POST",
+    });
+    /////////////////////
 
     res.status(201).json({ output: rows });
   }
-
 });
 
-
-app.put("/:id", async (req, res) => { /**** */
+app.put("/:id", async (req, res) => {
+  /**** */
 
   const id = parseInt(req.params.id);
   console.log("updating user in process");
   console.log("ID: ", id);
   const { username, password, email } = req.body;
 
-     console.log("")
+  console.log("");
 
-
-     let connection = await mysql.createConnection(dbConfig);
-    const [rows]= await connection.execute(
-      `
+  let connection = await mysql.createConnection(dbConfig);
+  const [rows] = await connection.execute(
+    `
       UPDATE users
 SET username =?, password = ?, email = ? WHERE id = ?
       `,
-      [username,password, email, id]
-    );
-    
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-      await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  id,
-                text: "USER SUCCESSFULY UPDATED!",
-                type: "USER UPDATE",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+    [username, password, email, id],
+  );
+
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  await fetch("http://localhost:3004/notification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: id,
+      text: "USER SUCCESSFULY UPDATED!",
+      type: "USER UPDATE",
+      marked_needed_to_delete: 0,
+    }),
+  });
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+  ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
   res.json(rows);
-
 });
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
