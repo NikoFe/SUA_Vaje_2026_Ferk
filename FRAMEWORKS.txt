@@ -1,11 +1,21 @@
-catalogue - express
 
-user profile - spring boot
+Lines of code:
 
-payment and shipping - FAST API
+notification - 401
 
-notification - express
+user - 444
 
+store - 488
+
+payment 596
+
+
+notification - hono
+
+store service - fastify
+
+
+ ///////////
 
 ///node js frameworks
 

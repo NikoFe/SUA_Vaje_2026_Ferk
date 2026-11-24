@@ -1,142 +1,225 @@
-const express = require("express");
-const cors = require("cors");
+const Fastify = require("fastify");
+const cors = require("@fastify/cors");
 const mysql = require("mysql2/promise");
-const swaggerJsdoc = require ("swagger-jsdoc")
-const swaggerUi =require ("swagger-ui-express")
 
-const app = express();
+const app = Fastify({ logger: true });
 const PORT = 3001;
 
-
-if (process.env.NODE_ENV === 'test') {
-  require('dotenv').config({ path: './.env.test' });
+if (process.env.NODE_ENV === "test") {
+  require("dotenv").config({ path: "./.env.test" });
 } else {
-  require('dotenv').config({ path: './.env' });
+  require("dotenv").config({ path: "./.env" });
 }
 
 const dbConfig = {
-  host:  `${process.env.DB_HOST}`,
-  user:  `${process.env.DB_USER}`,
-  password:  `${process.env.DB_PASSWORD}` ,
-  database:  `${process.env.DB_NAME}` ,
-  decimalNumbers: true // <<< ADD THIS
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  decimalNumbers: true,
 };
 
-app.use(express.json());
-app.use(cors());
+/*
+function parseInt(value) {
+  if (
+    (typeof value !== "string" && typeof value !== "number") ||
+    (typeof value === "string" && value.trim() === "")
+  ) {
+    return null;
+  }
 
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}*/
 
+function isRequestBody(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
+async function requireAdmin(userId, reply) {
+  if (userId === undefined || userId === null || userId === "") {
+    reply.code(401).send({ error: "Authentication is required" });
+    return false;
+  }
 
-app.put('/stock/:product_id', async(req, res) => {
+  const parsedUserId = parseInt(userId);
+  if (parsedUserId === null) {
+    reply.code(400).send({ error: "A valid user_id is required" });
+    return false;
+  }
 
-  const {
-    new_amount,
-  } = req.body;
-
- const product_id = parseInt(req.params.product_id);
- 
-  console.log(" _______ NEW AMOUNT: ",new_amount );
-  console.log(" _______ PRODUCT ID: ",product_id );
-
-  const db = await mysql.createConnection(dbConfig);
   try {
- const response= await db.execute(
-    `
-UPDATE product
-SET stock = ?
-WHERE id = ?;
-    `,
-    [new_amount, product_id]
-  );
+    const response = await fetch(
+      `http://localhost:3002/status/${encodeURIComponent(parsedUserId)}`,
+    );
+    const result = await response.json();
 
-      res.json({ message: "stock update  success" }); // 
+    if (!response.ok) {
+      reply.code(response.status).send(result);
+      return false;
+    }
+
+    if (
+      typeof result.status !== "string" ||
+      result.status.trim().toLowerCase() !== "admin"
+    ) {
+      reply.code(403).send({ error: "Admin privileges are required" });
+      return false;
+    }
+
+    return true;
   } catch (error) {
-    console.error("Error in UPDATE:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }finally {
-    await db.end();
+    console.error("Error checking admin privileges:", error);
+    reply.code(502).send({ error: "User service unavailable" });
+    return false;
   }
-})
+}
+
+app.put("/stock/:product_id", async (request, reply) => {
+  //const productId = parseInt(request.params.product_id);
+ const productId =parseInt(request.params.product_id);
 
 
+  const newAmount =  request.body.new_amount;
 
+  if (productId === null) {
+    return reply.code(400).send({ error: "A valid product_id is required" });
+  }
+  if (
+    (typeof newAmount !== "number" && typeof newAmount !== "string") ||
+    (typeof newAmount === "string" && newAmount.trim() === "") ||
+    !Number.isFinite(Number(newAmount)) ||
+    Number(newAmount) < 0
+  ) {
+    return reply.code(400).send({ error: "A valid new_amount is required" });
+  }
 
-  app.get('/',async (req, res) => {
- console.log("AAAAA!:")
-try {
-    const connection = (await mysql.createConnection(dbConfig));
-    //const [rows] = await connection.execute("SHOW TABLES");
-     console.log("B!:")
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [existingProducts] = await connection.execute(
+      "SELECT id FROM product WHERE id = ? LIMIT 1",
+      [productId],
+    );
+    if (existingProducts.length === 0) {
+      return reply.code(404).send({ error: "Product not found" });
+    }
+
+    await connection.execute(
+      `UPDATE product
+       SET stock = ?
+       WHERE id = ?`,
+      [Number(newAmount), productId],
+    );
+    return reply.code(200).send({ message: "stock update success" });
+  } catch (error) {
+    console.error("Error updating stock:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.get("/", async (_request, reply) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute("SELECT * FROM product");
-    //await connection.end();
-    console.log("ROWS: ",rows)
-    res.json(rows);
+    return reply.code(200).send(rows);
   } catch (error) {
-    console.error("Error getting products!", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error getting products:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
-  })
+});
 
+app.get("/:id", async (request, reply) => {
+  //const productId = parseInt(request.params.id);
 
-app.get('/:id', async (req, res) => {
-    id= parseInt(req.params.id)
-    console.log("URL id: ||", id,"||")
-    try {
-      const connection =(await mysql.createConnection(dbConfig));
-      const [rows] =  await connection.execute(
-        "SELECT * FROM product WHERE id = ?  LIMIT 1",
-        [id]
-      );
-      console.log("ROWS: ",rows)
-      res.json(rows);
-    } catch (error) {
-      console.error("Error getting specific product:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+  const productId = parseInt(request.params.id);
+
+  if (productId === null) {
+    return reply.code(400).send({ error: "A valid product ID is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      "SELECT * FROM product WHERE id = ? LIMIT 1",
+      [productId],
+    );
+    return reply.code(rows.length === 0 ? 404 : 200).send(rows);
+  } catch (error) {
+    console.error("Error getting specific product:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
     }
+  }
+});
 
-  })
-
-
-app.get('/comments', async (req, res) => {
-
-    try {
-      const connection =(await mysql.createConnection(dbConfig));
-      const [rows] =  await connection.execute(
-        "SELECT * FROM comments;"
-        
-      );
-    // console.log("ROWS: ",rows)
-      res.json(rows);
-    } catch (error) {
-      console.error("Error getting  products:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+app.get("/comments", async (_request, reply) => {
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute("SELECT * FROM comments");
+    return reply.code(200).send(rows);
+  } catch (error) {
+    console.error("Error getting comments:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
     }
+  }
+});
 
-  })
+app.get("/comments/:id", async (request, reply) => {
+ // const productId = parseInt(request.params.id);
+ const productId = parseInt(request.params.id);
+  if (productId === null) {
+    return reply.code(400).send({ error: "A valid product ID is required" });
+  }
 
-app.get('/comments/:id', async (req, res) => {
-    id= parseInt(req.params.id)
-    console.log("URL id: ||", id,"||")
-    try {
-      const connection =(await mysql.createConnection(dbConfig));
-      const [rows] =  await connection.execute(
-        "SELECT * FROM comments WHERE product_id = ?",
-        [id]
-      );
-    // console.log("ROWS: ",rows)
-      res.json(rows);
-    } catch (error) {
-      console.error("Error getting specific product:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      "SELECT * FROM comments WHERE product_id = ?",
+      [productId],
+    );
+    return reply.code(200).send(rows);
+  } catch (error) {
+    console.error("Error getting comments for product:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
     }
+  }
+});
 
-  })
+app.post("/:user_id", async (request, reply) => {
+  const userId = parseInt(request.params.user_id);
+  if (userId === null) {
+    return reply.code(400).send({ error: "A valid user_id is required" });
+  }
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
 
+  const isAdmin = await requireAdmin(userId, reply);
+  if (!isAdmin) {
+    return reply;
+  }
 
-  ///COMMUNICATION///
-app.post('/:user_id', async (req, res) => {
-  console.log("CREATING PRODUCT IN STORE")
   const {
     name,
     description,
@@ -147,40 +230,36 @@ app.post('/:user_id', async (req, res) => {
     vitamins,
     stock,
     discount,
-    image_path
-  } = req.body;
+    image_path,
+  } = request.body;
 
-const user_id = req.params.user_id;
   let connection;
   try {
-    //*****ADMIN CHECK ********//
-    const response = await fetch(
-      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json(result);
-    }
-
-    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
-      console.log("ERROR! NOT AN ADMIN!");
-      return res.status(403).json({ error: "Admin privileges are required" });
-    }
-   //*******************************//
-
     const id = Math.floor(Math.random() * 100000);
     connection = await mysql.createConnection(dbConfig);
     await connection.execute(
       `INSERT INTO product
        (id, name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path]
+      [
+        id,
+        name,
+        description,
+        cost,
+        kilograms,
+        allergens,
+        kilojoules,
+        vitamins,
+        stock,
+        discount,
+        image_path,
+      ],
     );
 
-    res.status(201).json({ message: 'Product created', id });
+    return reply.code(201).send({ message: "Product created", id });
   } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({ error: 'Failed to create product' });
+    console.error("Error creating product:", error);
+    return reply.code(500).send({ error: "Failed to create product" });
   } finally {
     if (connection) {
       await connection.end();
@@ -188,176 +267,157 @@ const user_id = req.params.user_id;
   }
 });
 
-///COMMUNICATION///
-app.put('/:id', async (req, res) => {
-    console.log("OOOO change_amount");
-    current_id= parseInt(req.params.id)
-
-
-    const {user_id }= req.body;
-    //*****ADMIN CHECK ********//
-    const response = await fetch(
-      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json(result);
-    }
-
-    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
-      console.log("ERROR! NOT AN ADMIN!");
-      return res.status(403).json({ error: "Admin privileges are required" });
-    }
-   //*******************************//
-
-
-
-
-    try {
-      //  const user_id = req.headers['user_id'];
-        const { name,description, cost,kilograms,allergens,kilojoules, vitamins ,stock,discount,image_path } = req.body;
-
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        await connection.execute(
-            `UPDATE product
-             SET name = ?, description = ?, cost = ?, kilograms = ?, allergens = ?, kilojoules = ?, vitamins = ?, stock = ?, discount = ?,image_path = ?
-             WHERE id = ?`,
-            [
-                name,description, cost,kilograms,allergens,kilojoules, vitamins ,stock,discount, image_path, current_id
-            ]
-        );
-
-        await connection.end();
-
-
-
-        res.json({ message: "update success" });
-
-    } catch (error) {
-        console.error("Error updating product:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-});
-
-
-///COMMUNICATION///
-app.delete('/:id', async(req, res) => {
-
-   console.log("CALLING DELETE!");
-
-    const {user_id }= req.body;
-
-
-    //*****ADMIN CHECK ********//
-    const response = await fetch(
-      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
-    );
-    const result = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json(result);
-    }
-
-    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
-      console.log("ERROR! NOT AN ADMIN!");
-      return res.status(403).json({ error: "Admin privileges are required" });
-    }
-
-   //*******************************//
-
-
-
-  const db = await mysql.createConnection(dbConfig);
-  try {
-
-  console.log(req.params)
-   const {id } = req.params;
-
-
-  await db.execute(
-    "DELETE FROM product WHERE id = ?",
-    [id]
-  );
-
-  ///|||///
-
-  console.log("Successfully deleted")
-  res.json({ message: "delete meal success" }); // 
-  } catch (error) {
-    console.error("Error in delete:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }finally {
-    await db.end();
+app.put("/:id", async (request, reply) => {
+  const productId = parseInt(request.params.id);
+  if (productId === null) {
+    return reply.code(400).send({ error: "A valid product ID is required" });
   }
-})
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
 
+  const isAdmin = await requireAdmin(request.body.user_id, reply);
+  if (!isAdmin) {
+    return reply;
+  }
 
-///////////////////////////////////////
-///COMMUNICATION///
-app.post('/comments', async (req, res) => {
-  console.log("CREATING COMMENT")
   const {
-    product_id,
-    userId,
-    username,
-    comment,
-    created_at
-  } = req.body;
-
-  console.log("PRODUCT_ID: ", product_id);
-  console.log("COMMENT: ", comment);
-  console.log("USER_ID: ", userId);
-  console.log("USERNAME: ", username);
-  console.log("CREATED_AT: ", created_at);
-
-const id = Math.floor(Math.random() * 100000);
-console.log (JSON.stringify(req.body))
+    name,
+    description,
+    cost,
+    kilograms,
+    allergens,
+    kilojoules,
+    vitamins,
+    stock,
+    discount,
+    image_path,
+  } = request.body;
 
   let connection;
-  let response="";
   try {
     connection = await mysql.createConnection(dbConfig);
-      response = await connection.execute(
+    const [existingProducts] = await connection.execute(
+      "SELECT id FROM product WHERE id = ? LIMIT 1",
+      [productId],
+    );
+    if (existingProducts.length === 0) {
+      return reply.code(404).send({ error: "Product not found" });
+    }
+
+    await connection.execute(
+      `UPDATE product
+       SET name = ?, description = ?, cost = ?, kilograms = ?, allergens = ?, kilojoules = ?, vitamins = ?, stock = ?, discount = ?, image_path = ?
+       WHERE id = ?`,
+      [
+        name,
+        description,
+        cost,
+        kilograms,
+        allergens,
+        kilojoules,
+        vitamins,
+        stock,
+        discount,
+        image_path,
+        productId,
+      ],
+    );
+
+    return reply.code(200).send({ message: "update success" });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.delete("/:id", async (request, reply) => {
+  const productId = parseInt(request.params.id);
+  if (productId === null) {
+    return reply.code(400).send({ error: "A valid product ID is required" });
+  }
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
+
+  const isAdmin = await requireAdmin(request.body.user_id, reply);
+  if (!isAdmin) {
+    return reply;
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "DELETE FROM product WHERE id = ?",
+      [productId],
+    );
+    if (result.affectedRows === 0) {
+      return reply.code(404).send({ error: "Product not found" });
+    }
+
+    return reply.code(200).send({ message: "delete meal success" });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+app.post("/comments", async (request, reply) => {
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
+
+  const { product_id, userId, username, comment, created_at } = request.body;
+  const productId = parseInt(product_id);
+  const parsedUserId = parseInt(userId);
+  if (
+    productId === null ||
+    parsedUserId === null ||
+    typeof username !== "string" ||
+    username.trim() === "" ||
+    typeof comment !== "string" ||
+    comment.trim() === "" ||
+    created_at === undefined ||
+    created_at === null
+  ) {
+    return reply.code(400).send({ error: "Invalid comment details" });
+  }
+
+  let connection;
+  try {
+    const id = Math.floor(Math.random() * 100000);
+    connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
       `INSERT INTO comments
        (id, product_id, user_id, comment, username, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, product_id, userId, comment, username, created_at]
+      [id, productId, parsedUserId, comment, username, created_at],
     );
 
- console.log ("SO FAR SO GOOD");
+    await fetch("http://localhost:3004/notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: parsedUserId,
+        text: "COMMENT SUCCESSFULY CREATED!",
+        type: "COMMENT CREATED",
+        marked_needed_to_delete: 0,
+      }),
+    });
 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  userId,
-                text: "COMMENT SUCCESSFULY CREATED!",
-                type: "COMMENT CREATED",
-                marked_needed_to_delete: 0
-         
-            })
-        });
- 
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-   // const result = await response.json();
-   // res.status(response.status).json(response);
-       // res.status(response.status).json(result);
-       //res.send("comment successfuly created!");
-       res.status(202).send("comment successfuly created!");
-
-
-
+    return reply.code(201).send("comment successfuly created!");
   } catch (error) {
-    console.error('Error creating comment:', error);
-    res.status(500).json({ error: 'Failed to create comment' });
+    console.error("Error creating comment:", error);
+    return reply.code(500).send({ error: "Failed to create comment" });
   } finally {
     if (connection) {
       await connection.end();
@@ -365,123 +425,118 @@ console.log (JSON.stringify(req.body))
   }
 });
 
-app.put('/comments/:id', async(req, res) => {
-  const {
-    comment,
-    user_id
-  } = req.body;
-
-
-  const db = await mysql.createConnection(dbConfig);
-
-  try {
-
-   const {id } = req.params;
-  
-
- const response= await db.execute(
-    `
-UPDATE comments
-SET comment = ?
-WHERE id = ?;
-    `,
-    [comment, id]
-  );
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-
-console.log("NNNNNNNNNNN USER ID: ",user_id )
-
-      await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  user_id,
-                text: "COMMENT SUCCESSFULY UPDATED!",
-                type: "COMMENT UPDATE",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-       
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-       // const result = await response.json();
-        //res.status(response.status).json(result);
-      res.json({ message: "update  success" }); // 
-  } catch (error) {
-    console.error("Error in UPDATE:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }finally {
-    await db.end();
+app.put("/comments/:id", async (request, reply) => {
+  const commentId = parseInt(request.params.id);
+  if (commentId === null) {
+    return reply.code(400).send({ error: "A valid comment ID is required" });
   }
-})
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
 
-//CHECK IF USER ID FITS THE COMMENT///
-app.delete('/comments/:id', async(req, res) => {
+  const { comment, user_id } = request.body;
+  const userId = parseInt(user_id);
+  if (
+    userId === null ||
+    typeof comment !== "string" ||
+    comment.trim() === ""
+  ) {
+    return reply.code(400).send({ error: "Invalid comment details" });
+  }
 
-  console.log("REQ BODY:   ", req.body);
-  const {user_id}= req.body;
-  const db = await mysql.createConnection(dbConfig);
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [existingComments] = await connection.execute(
+      "SELECT id FROM comments WHERE id = ? LIMIT 1",
+      [commentId],
+    );
+    if (existingComments.length === 0) {
+      return reply.code(404).send({ error: "Comment not found" });
+    }
 
+    await connection.execute(
+      `UPDATE comments
+       SET comment = ?
+       WHERE id = ?`,
+      [comment, commentId],
+    );
 
-   console.log("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDELETEDELETEDELETE!!!!");
-   const {id} = req.params;
-   console.log("id!!!!: ", id);
+    await fetch("http://localhost:3004/notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        text: "COMMENT SUCCESSFULY UPDATED!",
+        type: "COMMENT UPDATE",
+        marked_needed_to_delete: 0,
+      }),
+    });
 
-  const response = await db.execute(
-    "DELETE FROM comments WHERE id = ?",
-    [id]
-  );
-
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-
-console.log("NNNNNNNNNNN USER ID: ",user_id )
-
-      await fetch('http://localhost:3004/notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id:  user_id,
-                text: "COMMENT SUCCESSFULY DELETED!",
-                type: "COMMENT DELETE",
-                marked_needed_to_delete: 0
-         
-            })
-        });
-       
-
-      // console.log("NOTIFICATION CREATION!!!!: ",result);
-
-
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-        const result = await response.json();
-        res.status(response.status).json(result);
-
-  res.json({ message: "delete comment success" }); // 
-
+    return reply.code(200).send({ message: "update success" });
+  } catch (error) {
+    console.error("Error updating comment:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
 });
 
-process.on('SIGINT', () => {
-   console.log('Closing MySQL connection');
-   connection.end(err => {
-     if (err) console.error('Error during disconnection:', err);
-     process.exit();
-   });
- });
+app.delete("/comments/:id", async (request, reply) => {
+  const commentId = parseInt(request.params.id);
+  if (commentId === null) {
+    return reply.code(400).send({ error: "A valid comment ID is required" });
+  }
+  if (!isRequestBody(request.body)) {
+    return reply.code(400).send({ error: "A JSON request body is required" });
+  }
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-})
-//////////////////////////////
+  const userId = parseInt(request.body.user_id);
+  if (userId === null) {
+    return reply.code(400).send({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      "DELETE FROM comments WHERE id = ?",
+      [commentId],
+    );
+    if (result.affectedRows === 0) {
+      return reply.code(404).send({ error: "Comment not found" });
+    }
+
+    await fetch("http://localhost:3004/notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        text: "COMMENT SUCCESSFULY DELETED!",
+        type: "COMMENT DELETE",
+        marked_needed_to_delete: 0,
+      }),
+    });
+
+    return reply.code(200).send({ message: "delete comment success" });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+});
+
+async function start() {
+  await app.register(cors);
+  await app.listen({ port: PORT, host: "0.0.0.0" });
+}
+
+start().catch((error) => {
+  console.error("Failed to start store service:", error);
+  process.exitCode = 1;
+});

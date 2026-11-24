@@ -6,5 +6,7 @@ direct connections between services
 
 have shipments auto delete if timer passes
 
+TELL THE USER IF THERE IS NOT ENOUGH STOCK during checkout!
+
 
 
