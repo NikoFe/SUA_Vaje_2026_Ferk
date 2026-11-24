@@ -23,7 +23,43 @@ const dbConfig = {
 };
 
 app.use(express.json());
-app.use(cors())
+app.use(cors());
+
+
+
+
+app.put('/stock/:product_id', async(req, res) => {
+
+  const {
+    new_amount,
+  } = req.body;
+
+ const product_id = parseInt(req.params.product_id);
+ 
+  console.log(" _______ NEW AMOUNT: ",new_amount );
+  console.log(" _______ PRODUCT ID: ",product_id );
+
+  const db = await mysql.createConnection(dbConfig);
+  try {
+ const response= await db.execute(
+    `
+UPDATE product
+SET stock = ?
+WHERE id = ?;
+    `,
+    [new_amount, product_id]
+  );
+
+      res.json({ message: "stock update  success" }); // 
+  } catch (error) {
+    console.error("Error in UPDATE:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }finally {
+    await db.end();
+  }
+})
+
+
 
 
   app.get('/',async (req, res) => {
@@ -42,14 +78,14 @@ try {
   }
   })
 
-//app.get('/store/:id', async (req, res) => {
+
 app.get('/:id', async (req, res) => {
     id= parseInt(req.params.id)
     console.log("URL id: ||", id,"||")
     try {
       const connection =(await mysql.createConnection(dbConfig));
       const [rows] =  await connection.execute(
-        "SELECT * FROM product WHERE id = ?",
+        "SELECT * FROM product WHERE id = ?  LIMIT 1",
         [id]
       );
       console.log("ROWS: ",rows)
@@ -97,8 +133,10 @@ app.get('/comments/:id', async (req, res) => {
 
   })
 
-app.post('/', async (req, res) => {
-  console.log("CREATING IN STORE")
+
+  ///COMMUNICATION///
+app.post('/:user_id', async (req, res) => {
+  console.log("CREATING PRODUCT IN STORE")
   const {
     name,
     description,
@@ -112,11 +150,25 @@ app.post('/', async (req, res) => {
     image_path
   } = req.body;
 
-    const id = Math.floor(Math.random() * 100000);
-console.log (JSON.stringify(req.body))
-
+const user_id = req.params.user_id;
   let connection;
   try {
+    //*****ADMIN CHECK ********//
+    const response = await fetch(
+      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(result);
+    }
+
+    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
+      console.log("ERROR! NOT AN ADMIN!");
+      return res.status(403).json({ error: "Admin privileges are required" });
+    }
+   //*******************************//
+
+    const id = Math.floor(Math.random() * 100000);
     connection = await mysql.createConnection(dbConfig);
     await connection.execute(
       `INSERT INTO product
@@ -124,8 +176,6 @@ console.log (JSON.stringify(req.body))
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path]
     );
-
-///||||///
 
     res.status(201).json({ message: 'Product created', id });
   } catch (error) {
@@ -138,9 +188,30 @@ console.log (JSON.stringify(req.body))
   }
 });
 
+///COMMUNICATION///
 app.put('/:id', async (req, res) => {
     console.log("OOOO change_amount");
     current_id= parseInt(req.params.id)
+
+
+    const {user_id }= req.body;
+    //*****ADMIN CHECK ********//
+    const response = await fetch(
+      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(result);
+    }
+
+    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
+      console.log("ERROR! NOT AN ADMIN!");
+      return res.status(403).json({ error: "Admin privileges are required" });
+    }
+   //*******************************//
+
+
+
 
     try {
       //  const user_id = req.headers['user_id'];
@@ -171,8 +242,32 @@ app.put('/:id', async (req, res) => {
 });
 
 
-
+///COMMUNICATION///
 app.delete('/:id', async(req, res) => {
+
+   console.log("CALLING DELETE!");
+
+    const {user_id }= req.body;
+
+
+    //*****ADMIN CHECK ********//
+    const response = await fetch(
+      `http://localhost:3002/status/${encodeURIComponent(user_id)}`,
+    );
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json(result);
+    }
+
+    if (typeof result.status !== "string" || result.status.trim().toLowerCase() !== "admin") {
+      console.log("ERROR! NOT AN ADMIN!");
+      return res.status(403).json({ error: "Admin privileges are required" });
+    }
+
+   //*******************************//
+
+
 
   const db = await mysql.createConnection(dbConfig);
   try {
@@ -199,16 +294,8 @@ app.delete('/:id', async(req, res) => {
 })
 
 
-process.on('SIGINT', () => {
-   console.log('Closing MySQL connection');
-   connection.end(err => {
-     if (err) console.error('Error during disconnection:', err);
-     process.exit();
-   });
- });
-
 ///////////////////////////////////////
-
+///COMMUNICATION///
 app.post('/comments', async (req, res) => {
   console.log("CREATING COMMENT")
   const {
@@ -229,9 +316,10 @@ const id = Math.floor(Math.random() * 100000);
 console.log (JSON.stringify(req.body))
 
   let connection;
+  let response="";
   try {
     connection = await mysql.createConnection(dbConfig);
-    await connection.execute(
+      response = await connection.execute(
       `INSERT INTO comments
        (id, product_id, user_id, comment, username, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -239,9 +327,6 @@ console.log (JSON.stringify(req.body))
     );
 
  console.log ("SO FAR SO GOOD");
-
-
- ///|||///
 
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
@@ -252,23 +337,27 @@ console.log (JSON.stringify(req.body))
             body: JSON.stringify({
               user_id:  userId,
                 text: "COMMENT SUCCESSFULY CREATED!",
-                type: "COMMENT CREATION",
+                type: "COMMENT CREATED",
                 marked_needed_to_delete: 0
          
             })
         });
-        const result = await response.json();
-       console.log("NOTIFICATION CREATION!!!!: ",result);
+ 
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
+   // const result = await response.json();
+   // res.status(response.status).json(response);
+       // res.status(response.status).json(result);
+       //res.send("comment successfuly created!");
+       res.status(202).send("comment successfuly created!");
 
-        res.status(response.status).json(result);
+
 
   } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({ error: 'Failed to create product' });
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
   } finally {
     if (connection) {
       await connection.end();
@@ -277,9 +366,6 @@ console.log (JSON.stringify(req.body))
 });
 
 app.put('/comments/:id', async(req, res) => {
-  //console.log("OOOO deleteMeal")
-  //console.log("delete gateway")
-
   const {
     comment,
     user_id
@@ -293,7 +379,7 @@ app.put('/comments/:id', async(req, res) => {
    const {id } = req.params;
   
 
-  await db.execute(
+ const response= await db.execute(
     `
 UPDATE comments
 SET comment = ?
@@ -302,9 +388,6 @@ WHERE id = ?;
     [comment, id]
   );
 
-  //console.log("Successfully updated")
-
-
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
@@ -312,7 +395,7 @@ WHERE id = ?;
 
 console.log("NNNNNNNNNNN USER ID: ",user_id )
 
-        const response = await fetch('http://localhost:3004/notification', {
+      await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -323,16 +406,14 @@ console.log("NNNNNNNNNNN USER ID: ",user_id )
          
             })
         });
-        const result = await response.json();
+       
 
-      // console.log("NOTIFICATION CREATION!!!!: ",result);
-
-        res.status(response.status).json(result);
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-
-  res.json({ message: "update  success" }); // 
+       // const result = await response.json();
+        //res.status(response.status).json(result);
+      res.json({ message: "update  success" }); // 
   } catch (error) {
     console.error("Error in UPDATE:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -341,9 +422,8 @@ console.log("NNNNNNNNNNN USER ID: ",user_id )
   }
 })
 
-
+//CHECK IF USER ID FITS THE COMMENT///
 app.delete('/comments/:id', async(req, res) => {
-
 
   console.log("REQ BODY:   ", req.body);
   const {user_id}= req.body;
@@ -354,7 +434,7 @@ app.delete('/comments/:id', async(req, res) => {
    const {id} = req.params;
    console.log("id!!!!: ", id);
 
-  await db.execute(
+  const response = await db.execute(
     "DELETE FROM comments WHERE id = ?",
     [id]
   );
@@ -367,7 +447,7 @@ app.delete('/comments/:id', async(req, res) => {
 
 console.log("NNNNNNNNNNN USER ID: ",user_id )
 
-        const response = await fetch('http://localhost:3004/notification', {
+      await fetch('http://localhost:3004/notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -378,20 +458,28 @@ console.log("NNNNNNNNNNN USER ID: ",user_id )
          
             })
         });
-        const result = await response.json();
+       
 
       // console.log("NOTIFICATION CREATION!!!!: ",result);
 
+
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
+        const result = await response.json();
         res.status(response.status).json(result);
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
   res.json({ message: "delete comment success" }); // 
 
 });
 
-
+process.on('SIGINT', () => {
+   console.log('Closing MySQL connection');
+   connection.end(err => {
+     if (err) console.error('Error during disconnection:', err);
+     process.exit();
+   });
+ });
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

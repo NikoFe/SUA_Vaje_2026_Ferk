@@ -99,6 +99,7 @@
         });
 
         if (!response.ok) {
+          alert("ERROR UPDATING!, YOU ALSO HAVE TO BE AN ADMIN!");
           const result = await response.json().catch(() => ({}));
           throw new Error(result.error || "Failed to update product.");
         }

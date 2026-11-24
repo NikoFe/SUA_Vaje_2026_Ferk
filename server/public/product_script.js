@@ -53,7 +53,15 @@ async function deleteProduct(id) {
   });
   console.log("FROM SERVER DELETE RESPONSE: ", response);
 
-  window.location.href = "http://localhost:3010/store";
+  console.log("RESPONSE STATUS: ", response.status)
+  if(response.status==403){
+    alert("YOU NEED TO BE AN ADMIN FOR THIS OPERATION!");
+  }
+
+ else if (response.status==202 || response.status==200 ) {
+  console.log("REDIRECTION!");
+  //window.location.href = "http://localhost:3010/store";
+ }
 }
 
 async function updateProduct(id) {
@@ -363,6 +371,7 @@ async function createComment() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(commentData),
       });
+      console.log("COMMENT REPSONSE: ",response );
 
       if (!response.ok) {
         throw new Error(`Failed to create comment (${response.status})`);

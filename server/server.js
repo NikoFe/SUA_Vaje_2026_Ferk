@@ -185,15 +185,27 @@ app.get("/single_product/:id/information", async (req, res) => {
 
 
 app.delete("/single_product/:id", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Please sign in first" });
+  }
 
-         id= parseInt(req.params.id)
-        const response = await fetch(`http://localhost:3001/${id}`, {
-         
-          method: "DELETE"
-        });
+  const productId = Number(req.params.id);
+  if (!Number.isSafeInteger(productId) || productId <= 0) {
+    return res.status(400).json({ error: "A valid product ID is required" });
+  }
 
-        res.send("SUCCESS!")
-
+  try {
+    const response = await fetch(`http://localhost:3001/${productId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: req.session.userId }),
+    });
+    const result = await response.json();
+    return res.status(response.status).json(result);
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    return res.status(502).json({ error: "Store service unavailable" });
+  }
 });
 
 app.get('/store/products/:id', async (req, res) => {
@@ -203,17 +215,24 @@ app.get('/store/products/:id', async (req, res) => {
 
 
 app.post('/store/products', async(req, res) => {
+
+   if (!req.session.userId) {
+     console.log("ERROR!, USER NOT SIGNED IN!");
+     return res.status(403).json({ error: "Please sign in first" });
+   }
+
     try {
-        const response = await fetch('http://localhost:3001/', {
+        const response = await fetch(`http://localhost:3001/${encodeURIComponent(req.session.userId)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
         });
+
         const result = await response.json();
-        res.status(response.status).json(result);
+        return res.status(response.status).json(result);
     } catch (error) {
         console.error('Error creating product:', error);
-        res.status(502).json({ error: 'Store service unavailable' });
+        return res.status(502).json({ error: 'Store service unavailable' });
     }
 });
 
@@ -237,13 +256,22 @@ PUT
 app.put('/store/products/:id', async (req, res) => {
 
     console.log("UPDATE!!!!!!!!");
+
+   if (!req.session.userId) {
+     console.log("ERROR!, USER NOT SIGNED IN!");
+     return res.status(403).json({ error: "Please sign in first" });
+   }
+
     id= parseInt(req.params.id);
 
     try {
         const response = await fetch(`http://localhost:3001/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(req.body)
+         //   body: JSON.stringify(req.body)
+
+         body: JSON.stringify({ ...req.body, user_id: req.session.userId })
+
         });
         console.log("BBBBBBBBB")
 
@@ -321,8 +349,8 @@ app.post('/comments', async(req, res) => {
                 username
             })
         });
-        const result = await response.json();
-        res.status(response.status).json(result);
+      //  const result = await response.json();
+       res.status(response.status).send("COMMENT CREATED!");
     } catch (error) {
         console.error('Error creating comment:', error);
         res.status(502).json({ error: 'service unavailable' });
@@ -554,8 +582,48 @@ app.post("/user/cart", async (req, res) => {
     }
 });
 
+app.delete("/user/cart/single/:id", async (req, res) => {
+    console.log("REMOVING ITEM FROM THE CART!");
+    //const { userId } = req.session;
+    const id = Number.parseInt(req.params.id);
+ 
+
+    if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Invalid cart item ID" });
+    }
+
+    try {
+        const response = await fetch(
+
+         `http://localhost:3002/cart/single/${encodeURIComponent(id)}`,
+            {
+            method: "DELETE"
+            }
+            /*
+            `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
+            {
+            method: "DELETE"
+            */
+        );
+
+        const result = await response.json();
+        if (!response.ok) {
+            return res.status(response.status).json(result);
+        }
+
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error("Error deleting cart item:", error);
+        return res.status(502).json({ error: "User service unavailable" });
+    }
+});
+
+
+
+
 
 app.delete("/user/cart/:id", async (req, res) => {
+    console.log("CLEARING THE CART!");
     const { userId } = req.session;
     const id = Number.parseInt(req.params.id, 10);
     if (!userId) {
@@ -567,10 +635,16 @@ app.delete("/user/cart/:id", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
+
+         `http://localhost:3002/cart/${encodeURIComponent(userId)}`,
             {
             method: "DELETE"
             }
+            /*
+            `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
+            {
+            method: "DELETE"
+            */
         );
 
         const result = await response.json();
@@ -603,10 +677,12 @@ app.delete("/user/cart/", async (req, res) => {
 
 
         if (!response.ok) {
-            return res.status(response.status).json(result);
+         //   return res.status(response.status).json(result);
+         return res.send({message: "ERROR!"});
         }
-
-        return res.status(response.status).json(result);
+        
+         return res.send({message: "everything was deleted!"});
+       // return res.status(response.status).json(result);
     } catch (error) {
         console.error("Error deleting cart:", error);
         return res.status(502).json({ error: "User service unavailable" });
@@ -617,23 +693,30 @@ app.delete("/user/cart/", async (req, res) => {
  /////////////payment:
 
  app.post("/receipt", async (req, res) => {
-     console.log("PAYMENT RECEIPT: amount:", req.body.amount, "USER ID: ", req.session.userId);
+
+     //console.log("PAYMENT RECEIPT: amount:", req.body.amount, "USER ID: ", req.session.userId);
+
      if (!req.session.userId) {
          return res.status(401).json({ error: "Please log in to check out" });
      }
 
+     console.log("USER ID: ", req.session.userId);
+
+
+ /*
      const amount = Number(req.body.amount);
      if (!Number.isFinite(amount) || amount <= 0) {
          return res.status(400).json({ error: "A valid checkout amount is required" });
      }
+*/
 
      try {
          const response = await fetch(
-             `http://localhost:3003/receipt`,
+             `http://localhost:3003/receipt/`+ req.session.userId ,
              {
              method: "POST",
              headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ amount, user_id: req.session.userId })
+           //  body: JSON.stringify({ amount, user_id: req.session.userId })
              }
          );
 
@@ -903,14 +986,14 @@ app.get("/notification_preferences",async (req, res) => {
     }
 });
 
-app.put("/notification_preferences", async (req, res) => {
+app.put("/notification_preferences/toggle", async (req, res) => {
 
     const userId = req.session.userId;
-
+    console.log ("TYPE: ",req.body.type);
     if (!userId) return;
 
      const response = await fetch(
-               `http://localhost:3004/notification_preferences/${encodeURIComponent(userId)}`,
+               `http://localhost:3004/notification_preference/toggle/${encodeURIComponent(userId)}`,
        {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -918,6 +1001,9 @@ app.put("/notification_preferences", async (req, res) => {
         }
 
         );
+        const result= await response.json();
+        return res.status(response.status).json(result);
+
 
     /*
     return forwardNotificationRequest(
@@ -931,6 +1017,45 @@ app.put("/notification_preferences", async (req, res) => {
     );*/
 
 });
+
+
+app.delete("/notification_preferences",async (req, res) => {
+    const userId = req.session.userId;
+   console.log ("DISABLING ALL");
+    if (!userId) return;
+
+     const response = await fetch(
+               `http://localhost:3004/notification_preferences/${encodeURIComponent(userId)}`,
+       {
+            method: "DELETE",
+        }
+
+        );
+        const result= await response.json();
+        return res.status(response.status).json(result);
+});
+
+app.put("/notification_preferences/enable_all",async (req, res) => {
+    const userId = req.session.userId;
+   // console.log ("TYPE: ",req.body.type);
+    if (!userId) return;
+   console.log ("ENABLING ALL");
+
+
+
+     const response = await fetch(
+               `http://localhost:3004/notification_preferences/enable_all/${encodeURIComponent(userId)}`,
+       {
+            method: "PUT",
+        }
+
+        );
+        const result= await response.json();
+        return res.status(response.status).json(result);
+});
+
+
+
 
 app.get("/session_id" , async (req, res )=>{
 

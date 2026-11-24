@@ -114,3 +114,26 @@ padding: 5px;
 }
 
 
+.ignoredTypeDivs{
+
+    border: 2px solid black;
+    padding:5px;
+    
+}
+
+#notification_preferences{
+
+  display:flex;
+  flex-direction: column;
+  gap: 5px;
+
+
+}
+
+.clearPreferencesButton{
+  width: fit-content;
+}
+
+.toggleAllPreferencesButton{
+    width: fit-content;
+}

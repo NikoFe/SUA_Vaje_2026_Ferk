@@ -34,9 +34,7 @@ app.post("/cart", async (req, res) => { //**** */
 
   let connection;
 
-
    const id = Math.floor(Math.random() * 100000);
-
 
   connection = await mysql.createConnection(dbConfig);
   const [rows] = await connection.execute(
@@ -93,8 +91,36 @@ app.get("/cart/:id", async (req, res) => {//*** */
 
 })
 
+app.get("/status/:user_id", async (req, res) => {//*** */
+  const id = Number(req.params.user_id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "A valid user_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      "SELECT status FROM users WHERE id = ? LIMIT 1",
+      [id],
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    return res.json({ status: rows[0].status });
+  } catch (error) {
+    console.error("Error getting user status:", error);
+    return res.status(500).json({ error: "Unable to get user status" });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+})
+
 
 app.delete("/cart/all/:user_id", async (req, res) => {//*** */
+  console.log("DELETEING EVERYTHING FROM CART!");
   const user_id = Number.parseInt(req.params.user_id, 10);
   if (Number.isNaN(user_id)) {
     return res.status(400).json({ error: "Invalid user ID" });
@@ -127,18 +153,62 @@ app.delete("/cart/all/:user_id", async (req, res) => {//*** */
   return res.json({ deleted: result.affectedRows });
 });
 
-app.delete("/cart/:id", async (req, res) => {//*** */
-  const id = Number.parseInt(req.params.id, 10);
-  const user_id = Number.parseInt(req.query.user_id, 10);
-  if (Number.isNaN(id) || Number.isNaN(user_id)) {
+app.delete("/cart/single/:cart_item_id", async (req, res) => {//*** */
+
+  console.log ("SINGLE DELETE!");
+
+  const user_id = Number.parseInt(req.params.cart_item_id);
+
+  console.log ("DELETING cart item id:!", user_id);
+
+ /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
     return res.status(400).json({ error: "Invalid cart item or user ID" });
-  }
+  }*/
 
   const connection = await mysql.createConnection(dbConfig);
   const [result] = await connection.execute(
+    /*
     "DELETE FROM cart_item WHERE id = ? AND user_id = ?",
     [id, user_id]
+    */
+    "DELETE FROM cart_item WHERE id = ?",
+    [user_id]
+
   );
+  console.log("DELETING RESULT : ", result);
+  console.log("DELETING RESULT LENGTH: ", result.length);
+
+  return res.json({ deleted: result.affectedRows });
+});
+
+
+
+
+
+app.delete("/cart/:user_id", async (req, res) => {//*** */
+
+  console.log ("DDDDDELETING!");
+
+  const user_id = Number.parseInt(req.params.user_id);
+
+  console.log ("DELETING user id:!", user_id);
+
+ /* if (Number.isNaN(id) || Number.isNaN(user_id)) {
+    return res.status(400).json({ error: "Invalid cart item or user ID" });
+  }*/
+
+  const connection = await mysql.createConnection(dbConfig);
+  const [result] = await connection.execute(
+    /*
+    "DELETE FROM cart_item WHERE id = ? AND user_id = ?",
+    [id, user_id]
+    */
+    "DELETE FROM cart_item WHERE user_id = ?",
+    [user_id]
+
+  );
+  console.log("DELETING RESULT : ", result);
+  console.log("DELETING RESULT LENGTH: ", result.length);
 
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
@@ -158,12 +228,10 @@ app.delete("/cart/:id", async (req, res) => {//*** */
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 
-
-
   return res.json({ deleted: result.affectedRows });
 });
 
-
+////COMMUNICATION//// check product current amount
 app.put("/cart", async (req, res) => {//*** */
 
   const {user_id, product_id, amount } = req.body;
@@ -317,7 +385,7 @@ app.post("/create", async (req, res) => { /*** */
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
- const response =  fetch(`http://localhost:3004/notification_preferences/${id}`, {
+ fetch(`http://localhost:3004/notification_preferences/${id}`, {
             method: 'POST',
 
         });

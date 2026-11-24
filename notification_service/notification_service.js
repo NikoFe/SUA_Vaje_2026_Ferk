@@ -267,7 +267,7 @@ app.post("/notification_preferences/:user_id", async (req, res) => {
 
     const [rows] = await connection.execute(
       // "SELECT id, user_id, marked_needed_to_delete, ignored_types FROM notification_preference WHERE user_id = ? LIMIT 1",
-      "INSERT INTO notification_preference (id, user_id, ignored_types) VALUES (?, ?, 'USER CREATED:false,COMMENT CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false')",
+      "INSERT INTO notification_preference (id, user_id, ignored_types) VALUES (?, ?, 'RECEIPT CREATION:false,USER CREATED:false,COMMENT CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false')",
       [id, userId],
     );
 

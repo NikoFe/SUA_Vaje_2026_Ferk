@@ -125,9 +125,7 @@ async function getNotifications(){
       }
 
       const list = document.createElement("ul");
-
-      result.forEach((notification) => {
-
+      result.slice(0, 3).forEach((notification) => {
       let listItem = document.createElement("li");
 
         listItem.textContent =
@@ -137,7 +135,6 @@ async function getNotifications(){
       markReadButton.textContent ="MARK AS READ";
 
        markReadButton.addEventListener("click", async ()=>{
-        
         await fetch(`http://localhost:3010/notification/${notification.id}`, {
         method: "DELETE",
           /* headers: { 'Content-Type': 'application/json' },
@@ -147,14 +144,11 @@ async function getNotifications(){
        });
 
       await getNotifications();
-    
+
       });
-
-
-
     listItem.appendChild(markReadButton)
-
         list.appendChild(listItem);
+
       });
 
       notifiactionDiv.appendChild(list);

@@ -182,7 +182,7 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
         remove_button.textContent = "Remove";
         remove_button.addEventListener("click", async () => {
           try {
-            const response = await fetch(`/user/cart/${encodeURIComponent(item.id)}`, {
+            const response = await fetch(`/user/cart/single/${encodeURIComponent(item.id)}`, {
               method: "DELETE",
             });
             const result = await response.json();
@@ -244,13 +244,15 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
 
    console.log("CHECKOUT BUTTON CLICKED");
 
-   try {
-     const totalText = document.getElementById("cart_total").textContent;
-     const amount = Number(totalText.replace(/^Total:\s*/, ""));
-     if (!Number.isFinite(amount) || amount <= 0) {
-       throw new Error("Your cart is empty or its total is invalid.");
-     }
 
+  try {
+  //   const totalText = document.getElementById("cart_total").textContent;
+  //   const amount = Number(totalText.replace(/^Total:\s*/, ""));
+  //   if (!Number.isFinite(amount) || amount <= 0) {
+  //     throw new Error("Your cart is empty or its total is invalid.");
+ //   }
+
+     /*
   const cartResponse = await fetch("/user/cart");
   const cartItems = await cartResponse.json();
   if (!cartResponse.ok) {
@@ -258,16 +260,27 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
   }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     throw new Error("Your cart is empty.");
-  }
+  }*/
 
 
   //create receipt
   const response = await fetch("/receipt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
+   // body: JSON.stringify({ amount }),
   });
+
+  console.log("RESPONSE: ",response)
   const result = await response.json();
+
+  //console.log("A1: ", result);
+  //console.log("B1: ", result.cartItems);
+ // console.log("C1", result.cartItems[0]);
+   // console.log("C1", result.cartItems[0]);
+  //console.log("C1: ", result[0].cartItems);
+
+   
+  const cartItems = result.cartItems;
   if (!response.ok) {
     throw new Error(result.error || "Checkout failed");
   }
@@ -277,9 +290,9 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
     throw new Error("Receipt was created, but the service did not return its ID.");
   }
 
- // console.log("NEW RECEIPT ID:", receiptId);
-  
-  //create receipt_items
+ console.log("RECIEVED CART ITEMS: ", cartItems);
+
+  //CREATE CART ITEMS
   for (const item of cartItems) {
     const itemResponse = await fetch("/receipt_item", {
       method: "POST",
@@ -296,10 +309,11 @@ document.getElementById("userUpdateButton").addEventListener("click", async () =
     }
   }
 
+  /*
   const deleteResponse = await fetch("/user/cart/", {
     method: "DELETE"
   });
-
+ */
   //const userId = parseId(req.body.user_id);
   //const receiptId = parseId(req.body.receipt_id);
 
@@ -643,14 +657,12 @@ async function getNotificationPreferences() {
   const notificationsPreferenceDiv = document.getElementById ("notification_preferences");
 
 
-ignoredTypes.forEach (function(value, key) {
-
-
-
+ignoredTypes.forEach (async function(value, key) {
 
   const ignoredDiv = document.createElement("div");
   ignoredDiv.className = "ignoredTypeDivs";
   ignoredDiv.innerHTML= key;
+  console.log("TYPE: "+ key);
 
 ///////////////
   const ignoredStatus = document.createElement("p");
@@ -663,19 +675,60 @@ ignoredTypes.forEach (function(value, key) {
  toggleStatusButton.innerHTML = "TOGGLE";
  ignoredDiv.append(toggleStatusButton);
 toggleStatusButton.addEventListener("click", async ()=>{
-const response = await fetch("/notification_preferences", {
+const response = await fetch("/notification_preferences/toggle", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
          type: key
         })
 });
+
+notification_preferences_div.innerHTML="";
+
+await getNotificationPreferences();
 }
 )
-
 ///////////
   notificationsPreferenceDiv.append(ignoredDiv);
+//notificationsPreferenceDiv.append(clearPreferencesButton);
 })
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+const clearPreferencesButton =  document.createElement("button");
+clearPreferencesButton.className= "clearPreferencesButton";
+clearPreferencesButton.innerHTML = "CLEAR PREFERENCES";
+
+
+clearPreferencesButton.addEventListener("click", async ()=>{
+const response = await fetch("/notification_preferences/", {
+        method: "DELETE",
+        })
+notification_preferences_div.innerHTML="";
+await getNotificationPreferences();
+});
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+const toggleAllPreferencesButton =  document.createElement("button");
+toggleAllPreferencesButton.className= "toggleAllPreferencesButton";
+toggleAllPreferencesButton.innerHTML = "ENABLE ALL PREFERENCES";
+
+toggleAllPreferencesButton.addEventListener("click", async ()=>{
+const response = await fetch("/notification_preferences/enable_all", {
+        method: "PUT",
+        })
+
+notification_preferences_div.innerHTML="";
+await getNotificationPreferences();
+});
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+notificationsPreferenceDiv.append(clearPreferencesButton);
+notificationsPreferenceDiv.append(toggleAllPreferencesButton);
+
+
 /*
    for ( const type in ignoredTypes){
    console.log("?????: ",type.key );
@@ -745,8 +798,9 @@ document.getElementById("delete_all_notifications").addEventListener("click", as
   document.getElementById("checkoutButton").addEventListener("click", ()=>checkout());
   getCartItems();
   getUser();
- // getShipments();
- // deleteExpired();
+
+  getShipments();
+  deleteExpired();
   getReceipts();
  // getNotifications();
   getNotificationPreferences();

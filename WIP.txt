@@ -1,0 +1,10 @@
+status codes for each requests
+
+check if user id exist during each call (user must be logged in)
+
+direct connections between services
+
+have shipments auto delete if timer passes
+
+
+
