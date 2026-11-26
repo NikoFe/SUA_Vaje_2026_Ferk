@@ -7,6 +7,17 @@ const swaggerUi = require("swagger-ui-express");
 
 const app = express();
 const PORT = 3003;
+const swaggerDocs = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Payment Service API",
+      version: "1.0.0",
+    },
+    servers: [{ url: `http://localhost:${PORT}` }],
+  },
+  apis: [__filename],
+});
 
 if (process.env.NODE_ENV === "test") {
   require("dotenv").config({ path: "./.env.test" });
@@ -23,6 +34,7 @@ const dbConfig = {
 };
 app.use(express.json());
 app.use(cors());
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const userServiceUrl = process.env.USER_SERVICE_URL || "http://localhost:3002";
 const targetLocations = [
@@ -53,6 +65,30 @@ function randomLocation() {
 
 //COMMUNICATION//
 //THIS IS WHERE CHECKOUT HAPPENS
+/**
+ * @swagger
+ * /receipt/{user_id}:
+ *   post:
+ *     tags: [Checkout]
+ *     summary: Create a receipt from the user's cart
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '201':
+ *         description: Receipt created, with the purchased cart items
+ *       '400':
+ *         description: Invalid user ID, empty cart, or invalid totals
+ *       '409':
+ *         description: A cart product is missing or stock is insufficient
+ *       '500':
+ *         description: Unable to save the receipt
+ *       '502':
+ *         description: User or store service unavailable or returned invalid data
+ */
 app.post("/receipt/:user_id", async (req, res) => {
   const userId = parseId(req.params.user_id);
   if (!userId) {
@@ -228,6 +264,35 @@ app.post("/receipt/:user_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /receipt_item:
+ *   post:
+ *     tags: [Receipts]
+ *     summary: Add a product item to a receipt
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [product_id, receipt_id, amount]
+ *             properties:
+ *               product_id:
+ *                 type: integer
+ *               receipt_id:
+ *                 type: integer
+ *               amount:
+ *                 type: integer
+ *                 minimum: 1
+ *     responses:
+ *       '201':
+ *         description: Receipt item created
+ *       '400':
+ *         description: Invalid request body or item details
+ *       '500':
+ *         description: Unable to create receipt item
+ */
 app.post("/receipt_item/", async (req, res) => {
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
     return res.status(400).json({ error: "A JSON request body is required" });
@@ -262,6 +327,34 @@ app.post("/receipt_item/", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment:
+ *   post:
+ *     tags: [Shipments]
+ *     summary: Create a shipment for a user's receipt
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, receipt_id]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *               receipt_id:
+ *                 type: integer
+ *     responses:
+ *       '201':
+ *         description: Shipment created
+ *       '400':
+ *         description: Invalid request body or IDs
+ *       '404':
+ *         description: Receipt not found for this user
+ *       '500':
+ *         description: Unable to create shipment
+ */
 app.post("/shipment", async (req, res) => {
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
     return res.status(400).json({ error: "A JSON request body is required" });
@@ -326,6 +419,38 @@ app.post("/shipment", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment/cancel/{shipment_id}:
+ *   delete:
+ *     tags: [Shipments]
+ *     summary: Cancel a shipment
+ *     parameters:
+ *       - in: path
+ *         name: shipment_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: Optional user ID used to send a notification
+ *     responses:
+ *       '200':
+ *         description: Shipment cancelled
+ *       '400':
+ *         description: Invalid shipment ID
+ *       '404':
+ *         description: Shipment not found
+ *       '500':
+ *         description: Unable to cancel shipment
+ */
 app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
   const shipmentId = parseId(req.params.shipment_id);
   if (!shipmentId) {
@@ -385,6 +510,44 @@ app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment/{id}:
+ *   put:
+ *     tags: [Shipments]
+ *     summary: Update shipment locations
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Shipment ID
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [location, target_location]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: Optional user ID used to send a notification
+ *               location:
+ *                 type: string
+ *               target_location:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Shipment locations updated
+ *       '400':
+ *         description: Invalid ID, body, or location values
+ *       '404':
+ *         description: Shipment not found
+ *       '500':
+ *         description: Unable to update shipment
+ */
 app.put("/shipment/:shipment_id", async (req, res) => {
   const shipmentId = parseId(req.params.shipment_id);
   if (!shipmentId) {
@@ -460,6 +623,27 @@ app.put("/shipment/:shipment_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment/{id}:
+ *   get:
+ *     tags: [Shipments]
+ *     summary: List shipments belonging to a user
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: User ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Shipment records for the user
+ *       '400':
+ *         description: Invalid user ID
+ *       '500':
+ *         description: Unable to get shipments
+ */
 app.get("/shipment/:user_id", async (req, res) => {
   const userId = parseId(req.params.user_id);
   if (!userId) {
@@ -485,6 +669,26 @@ app.get("/shipment/:user_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /receipts/{user_id}:
+ *   get:
+ *     tags: [Receipts]
+ *     summary: List receipts belonging to a user
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Receipt records for the user
+ *       '400':
+ *         description: Invalid user ID
+ *       '500':
+ *         description: Unable to get receipts
+ */
 app.get("/receipts/:user_id", async (req, res) => {
   const userId = parseId(req.params.user_id);
   if (!userId) {
@@ -510,6 +714,38 @@ app.get("/receipts/:user_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment/restart/{shipment_id}:
+ *   put:
+ *     tags: [Shipments]
+ *     summary: Restart a shipment's delivery timer
+ *     parameters:
+ *       - in: path
+ *         name: shipment_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: Optional user ID used to send a notification
+ *     responses:
+ *       '200':
+ *         description: Shipment restarted
+ *       '400':
+ *         description: Invalid shipment ID
+ *       '404':
+ *         description: Shipment not found
+ *       '500':
+ *         description: Unable to restart shipment
+ */
 app.put("/shipment/restart/:shipment_id", async (req, res) => {
   const shipmentId = parseId(req.params.shipment_id);
   if (!shipmentId) {
@@ -571,6 +807,28 @@ app.put("/shipment/restart/:shipment_id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /shipment:
+ *   delete:
+ *     tags: [Shipments]
+ *     summary: Delete shipments older than five minutes
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: Optional user ID used to send a notification
+ *     responses:
+ *       '200':
+ *         description: Expired shipments deleted
+ *       '500':
+ *         description: Unable to delete expired shipments
+ */
 app.delete("/shipment", async (req, res) => {
   let connection;
   try {

@@ -1,0 +1,8 @@
+How to make an authenticated request to retrieve all users
+To make an authenticated request using the JWT token from the previous step, follow these steps:
+
+Open a new request tab by clicking the plus (+) button at the end of the tabs.
+Change the http request method to "GET" with the dropdown selector on the left of the URL input field.
+In the URL field enter the address to the users route of your local API - http://localhost:4000/users.
+Select the "Authorization" tab below the URL field, change the type to "Bearer Token" in the type dropdown selector, and paste the JWT token from the previous authenticate step into the "Token" field.
+Click the "Send" button, you should receive a "200 OK" response containing a JSON array with all the user records in the system (just the one test user in the example).

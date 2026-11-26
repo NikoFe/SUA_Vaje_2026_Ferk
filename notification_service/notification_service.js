@@ -3,9 +3,22 @@ const { cors } = require("hono/cors");
 const { serve } = require("@hono/node-server");
 const mysql = require("mysql2/promise");
 const { randomInt } = require("node:crypto");
+const swaggerJsdoc = require("swagger-jsdoc");
+const { swaggerUI } = require("@hono/swagger-ui");
 
 const app = new Hono();
 const PORT = 3004;
+const swaggerDocs = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Notification Service API",
+      version: "1.0.0",
+    },
+    servers: [{ url: `http://localhost:${PORT}` }],
+  },
+  apis: [__filename],
+});
 const DEFAULT_IGNORED_TYPES =
   "RECEIPT CREATION:false,USER CREATED:false,COMMENT CREATED:false,COMMENT UPDATE:false,COMMENT DELETE:false,NEW CART ITEM:false,CART EMPTIED:false,CART ITEM DELETED:false,CART UPDATE:false,USER UPDATE:false,SHIPMENT START:false,SHIPMENT CANCEL:false,SHIPMENT UPDATE:false,SHIPMENT RESTART:false,SHIPMENT RECIEVED:false";
 
@@ -24,6 +37,8 @@ const dbConfig = {
 };
 
 app.use("*", cors());
+app.get("/openapi.json", (context) => context.json(swaggerDocs));
+app.get("/api-docs", swaggerUI({ url: "/openapi.json" }));
 app.notFound((context) => context.json({ error: "Route not found" }, 404));
 app.onError((error, context) => {
   console.error("Unhandled notification service error:", error);
@@ -135,9 +150,92 @@ const body = await context.req.json();
   }
 }
 
+/**
+ * @swagger
+ * /notification:
+ *   post:
+ *     tags: [Notifications]
+ *     summary: Create a notification
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, text, type]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *               text:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: Notification created
+ *       '400':
+ *         description: Invalid notification data
+ *       '500':
+ *         description: Unable to create notification
+ */
 app.post("/notification", createNotification);
+
+/**
+ * @swagger
+ * /notification/{id}:
+ *   post:
+ *     tags: [Notifications]
+ *     summary: Create a notification for the user in the path
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: User ID
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [text, type]
+ *             properties:
+ *               text:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: Notification created
+ *       '400':
+ *         description: Invalid notification data
+ *       '500':
+ *         description: Unable to create notification
+ */
 app.post("/notification/:user_id", createNotification);
 
+/**
+ * @swagger
+ * /notification/{id}:
+ *   get:
+ *     tags: [Notifications]
+ *     summary: List a user's notifications excluding ignored types
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: User ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Notifications visible under the user's preferences
+ *       '400':
+ *         description: Invalid user ID
+ *       '500':
+ *         description: Unable to get notifications
+ */
 app.get("/notification/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {
@@ -175,6 +273,29 @@ app.get("/notification/:user_id", async (context) => {
   }
 });
 
+/**
+ * @swagger
+ * /notification/{id}:
+ *   delete:
+ *     tags: [Notifications]
+ *     summary: Delete a notification by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Notification ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Notification deleted
+ *       '400':
+ *         description: Invalid notification ID
+ *       '404':
+ *         description: Notification not found
+ *       '500':
+ *         description: Unable to delete notification
+ */
 app.delete("/notification/:notification_id", async (context) => {
   const notificationId = parseInt(context.req.param("notification_id"));
   if (notificationId === null) {
@@ -206,6 +327,38 @@ app.delete("/notification/:notification_id", async (context) => {
   }
 });
 
+/**
+ * @swagger
+ * /notification_preference/toggle/{user_id}:
+ *   put:
+ *     tags: [Notification Preferences]
+ *     summary: Toggle whether one notification type is ignored
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type]
+ *             properties:
+ *               type:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Preference toggled
+ *       '400':
+ *         description: Invalid user ID or notification type
+ *       '404':
+ *         description: Notification preferences not found
+ *       '500':
+ *         description: Unable to update notification preferences
+ */
 app.put("/notification_preference/toggle/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {
@@ -301,6 +454,26 @@ app.put("/notification_preference/toggle/:user_id", async (context) => {
   }
 });
 
+/**
+ * @swagger
+ * /notification_preferences/{user_id}:
+ *   post:
+ *     tags: [Notification Preferences]
+ *     summary: Create default notification preferences for a user
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '201':
+ *         description: Preferences created with all notification types enabled
+ *       '400':
+ *         description: Invalid user ID
+ *       '500':
+ *         description: Unable to create preferences
+ */
 app.post("/notification_preferences/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {
@@ -337,6 +510,28 @@ app.post("/notification_preferences/:user_id", async (context) => {
   }
 });
 
+/**
+ * @swagger
+ * /notification_preferences/{user_id}:
+ *   get:
+ *     tags: [Notification Preferences]
+ *     summary: Get a user's notification preferences
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Notification preference record
+ *       '400':
+ *         description: Invalid user ID
+ *       '404':
+ *         description: Notification preferences not found
+ *       '500':
+ *         description: Unable to get preferences
+ */
 app.get("/notification_preferences/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {
@@ -411,6 +606,28 @@ async function setAllIgnoredTypes(userId, ignored) {
   }
 }
 
+/**
+ * @swagger
+ * /notification_preferences/{user_id}:
+ *   delete:
+ *     tags: [Notification Preferences]
+ *     summary: Reset all notification types to not ignored
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Preferences reset
+ *       '400':
+ *         description: Invalid user ID
+ *       '404':
+ *         description: Notification preferences not found
+ *       '500':
+ *         description: Unable to reset preferences
+ */
 app.delete("/notification_preferences/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {
@@ -435,6 +652,28 @@ app.delete("/notification_preferences/:user_id", async (context) => {
   }
 });
 
+/**
+ * @swagger
+ * /notification_preferences/enable_all/{user_id}:
+ *   put:
+ *     tags: [Notification Preferences]
+ *     summary: Mark all notification types as ignored
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: All notification types are now ignored
+ *       '400':
+ *         description: Invalid user ID
+ *       '404':
+ *         description: Notification preferences not found
+ *       '500':
+ *         description: Unable to update preferences
+ */
 app.put("/notification_preferences/enable_all/:user_id", async (context) => {
   const userId = parseInt(context.req.param("user_id"));
   if (userId === null) {

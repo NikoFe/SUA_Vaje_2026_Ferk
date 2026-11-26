@@ -1,0 +1,245 @@
+services:
+
+
+  server_app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: server_service
+    ports:
+      - "3010:3010"
+    environment:
+      DB_HOST: localhost
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+      DB_PAYMENT_NAME: ${DB_PAYMENT_NAME}
+      DB_NOTIFICATION_NAME: ${DB_NOTIFICATION_NAME}
+      DB_STORE_NAME: ${DB_STORE_NAME}
+      DB_USER_NAME: ${DB_USER_NAME}
+      STORE_SERVICE_URL: http://store_app:3001
+      USER_SERVICE_URL: http://user_app:3002
+      PAYMENT_SERVICE_URL: http://payment_app:3003
+      NOTIFICATION_SERVICE_URL: http://notification_app:3004
+
+      MYSQL_PAYMENT_DATABASE: ${MYSQL_PAYMENT_DATABASE}
+      MYSQL_NOTIFICATION_DATABASE: ${MYSQL_NOTIFICATION_DATABASE}
+      MYSQL_STORE_DATABASE: ${MYSQL_STORE_DATABASE}
+      MYSQL_USER_DATABASE: ${MYSQL_USER_DATABASE}
+
+      #DB_NAME: ${DB_STORE_NAME}
+    volumes:
+      - /server/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app_network
+
+
+
+
+
+
+  store_database:
+    build:
+      context: ./store_service/mysql
+      dockerfile: Dockerfile
+    container_name: store_mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_STORE_DATABASE}
+    ports:
+      - "3301:3306"
+    volumes:
+      - store_db_data:/var/lib/mysql
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  store_app:
+    build:
+      context: ./store_service
+      dockerfile: Dockerfile
+    container_name: store_service
+    ports:
+      - "3001:3001"
+    depends_on:
+      store_database:
+        condition: service_healthy
+    environment:
+      DB_HOST: store_database
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_STORE_NAME}
+    volumes:
+      - ./store_service:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app_network
+
+  notification_database:
+    build:
+      context: ./notification_service/mysql
+      dockerfile: Dockerfile
+    container_name: notification_mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_NOTIFICATION_DATABASE}
+    ports:
+      - "3304:3306"
+    volumes:
+      - notification_db_data:/var/lib/mysql
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  notification_app:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile
+    container_name: notification_service
+    ports:
+      - "3004:3004"
+    depends_on:
+      notification_database:
+        condition: service_healthy
+    environment:
+      DB_HOST: notification_database
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NOTIFICATION_NAME}
+    volumes:
+      - ./notification_service:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app_network
+
+
+
+
+  user_database:
+    build:
+      context: ./user_service/mysql
+      dockerfile: Dockerfile
+    container_name: user_mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_USER_DATABASE}
+    ports:
+      - "3302:3306"
+    volumes:
+      - user_db_data:/var/lib/mysql
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  user_app:
+    build:
+      context: ./user_service
+      dockerfile: Dockerfile
+    container_name: user_service
+    ports:
+      - "3002:3002"
+    depends_on:
+      user_database:
+        condition: service_healthy
+    environment:
+      DB_HOST: user_database
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_USER_NAME}
+    volumes:
+      - ./user_service:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app_network
+
+
+
+
+
+  payment_database:
+    build:
+      context: ./payment_service/mysql
+      dockerfile: Dockerfile
+    container_name: payment_mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_PAYMENT_DATABASE}
+    ports:
+      - "3303:3306"
+    volumes:
+      - payment_db_data:/var/lib/mysql
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  payment_app:
+    build:
+      context: ./payment_service
+      dockerfile: Dockerfile
+    container_name: payment_service
+    ports:
+      - "3003:3003"
+    depends_on:
+      payment_database:
+        condition: service_healthy
+    environment:
+      DB_HOST: payment_database
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_PAYMENT_NAME}
+    volumes:
+      - ./payment_service:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app_network
+
+
+
+volumes:
+  store_db_data:
+  notification_db_data:
+  user_db_data:
+  payment_db_data:
+
+
+networks:
+  app_network:
+    driver: bridge

@@ -22,6 +22,17 @@ if (process.env.NODE_ENV === 'test') {
   require('dotenv').config();
 }
 
+  
+const STORE_SERVICE_URL =
+  process.env.STORE_SERVICE_URL || "http://localhost:3001";
+const USER_SERVICE_URL =
+  process.env.USER_SERVICE_URL || "http://localhost:3002";
+const PAYMENT_SERVICE_URL =
+  process.env.PAYMENT_SERVICE_URL || "http://localhost:3003";
+const NOTIFICATION_SERVICE_URL =
+  process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3004";
+
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
   session({
@@ -115,7 +126,7 @@ app.get('/update/:id', async (req, res) => {
     }
 
     try {
-        const response = await fetch(`http://localhost:3001/${productId}`);
+        const response = await fetch(`${STORE_SERVICE_URL}/${productId}`);
         if (!response.ok) {
             return res.status(response.status).send("Failed to load product");
         }
@@ -141,7 +152,9 @@ app.get('/update/:id', async (req, res) => {
 app.get('/store/products', async (req, res) => {
     try {
         // Send a request to the Store REST Service
-        const response = await fetch('http://localhost:3001/');
+
+        console.log("FETCH STRING: "+`${STORE_SERVICE_URL}/` );
+        const response = await fetch(`${STORE_SERVICE_URL}/`);
 
         // Check whether the request succeeded
         if (!response.ok) {
@@ -171,7 +184,7 @@ app.get('/store/products', async (req, res) => {
 app.get("/single_product/:id/information", async (req, res) => {
 
          id= parseInt(req.params.id)
-        const response = await fetch(`http://localhost:3001/${id}`);
+        const response = await fetch(`${STORE_SERVICE_URL}/${id}`);
 
         // Convert the response body into JavaScript objects
         const products = await response.json();
@@ -195,7 +208,7 @@ app.delete("/single_product/:id", async (req, res) => {
   }
 
   try {
-    const response = await fetch(`http://localhost:3001/${productId}`, {
+    const response = await fetch(`${STORE_SERVICE_URL}/${productId}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: req.session.userId }),
@@ -222,7 +235,7 @@ app.post('/store/products', async(req, res) => {
    }
 
     try {
-        const response = await fetch(`http://localhost:3001/${encodeURIComponent(req.session.userId)}`, {
+        const response = await fetch(`${STORE_SERVICE_URL}/${encodeURIComponent(req.session.userId)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -265,7 +278,7 @@ app.put('/store/products/:id', async (req, res) => {
     id= parseInt(req.params.id);
 
     try {
-        const response = await fetch(`http://localhost:3001/${id}`, {
+        const response = await fetch(`${STORE_SERVICE_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
          //   body: JSON.stringify(req.body)
@@ -307,7 +320,7 @@ PUT
 
 app.get("/comments/", async (req, res) => {
     try {
-        const response = await fetch('http://localhost:3001/comments');
+        const response = await fetch(`${STORE_SERVICE_URL}/comments`);
         const result = await response.json();
         res.status(response.status).json(result);
     } catch (error) {
@@ -319,7 +332,7 @@ app.get("/comments/", async (req, res) => {
 app.get("/comments/:id", async (req, res) => {
     try {
         const response = await fetch(
-            `http://localhost:3001/comments/${encodeURIComponent(req.params.id)}`
+            `${STORE_SERVICE_URL}/comments/${encodeURIComponent(req.params.id)}`
         );
         const result = await response.json();
         res.status(response.status).json(result);
@@ -338,7 +351,7 @@ app.post('/comments', async(req, res) => {
     }
 
     try {
-        const response = await fetch('http://localhost:3001/comments', {
+        const response = await fetch(`${STORE_SERVICE_URL}/comments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -362,8 +375,8 @@ app.put('/comments/:id', async (req, res) => {
     console.log ("COMMENTS IDIDIDIDID: ",req.params.id );
 
     try {
-      //  const response = await fetch(`http://localhost:3001/comments/${encodeURIComponent(req.params.id)}`, {
-            const response = await fetch(`http://localhost:3001/comments/${req.params.id}`, {
+      //  const response = await fetch(`${STORE_SERVICE_URL}/comments/${encodeURIComponent(req.params.id)}`, {
+            const response = await fetch(`${STORE_SERVICE_URL}/comments/${req.params.id}`, {
       method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...req.body, user_id: req.session.userId })
@@ -385,7 +398,7 @@ app.delete("/comments/:id", async (req, res) => {
         console.log("DELETE USER ID: ", req.session.userId );
 
    try {
-        const response = await fetch(`http://localhost:3001/comments/${id}`, {
+        const response = await fetch(`${STORE_SERVICE_URL}/comments/${id}`, {
           method: "DELETE",
           headers: { 'Content-Type': 'application/json' },
 
@@ -416,7 +429,7 @@ app.get("/user/cart", async (req, res) => {
     }
 
     try {
-        const response = await fetch(`http://localhost:3002/cart/${encodeURIComponent(userId)}`);
+        const response = await fetch(`${USER_SERVICE_URL}/cart/${encodeURIComponent(userId)}`);
         const result = await response.json();
         return res.status(response.status).json(result);
     } catch (error) {
@@ -429,7 +442,7 @@ app.get("/user/cart", async (req, res) => {
 app.post("/validate", async(req,res) => { //*** */
 
     console.log("VALIDATION IN PROCESS!");
-        const response = await fetch('http://localhost:3002/validate', {
+        const response = await fetch(`${USER_SERVICE_URL}/validate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -455,7 +468,7 @@ app.post("/validate", async(req,res) => { //*** */
 
 app.post("/user/create", async(req,res) => { //*** */
 
-        const response = await fetch('http://localhost:3002/create', {
+        const response = await fetch(`${USER_SERVICE_URL}/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -484,7 +497,7 @@ app.get("/user/:id", async(req,res) => {  //*** */
     }
 
     try {
-        const response = await fetch(`http://localhost:3002/${id}`);
+        const response = await fetch(`${USER_SERVICE_URL}/${id}`);
         const user = await response.json();
         return res.status(response.status).json(user);
     } catch (error) {
@@ -506,7 +519,7 @@ app.put("/user/cart", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3002/cart`,
+            `${USER_SERVICE_URL}/cart`,
             {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -536,7 +549,7 @@ app.put("/user/get_by_product_id/cart", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3002/cart`,
+            `${USER_SERVICE_URL}/cart`,
             {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -569,7 +582,7 @@ app.put("/user/:id", async(req,res) => {
     }
 
     try {
-        const response = await fetch(`http://localhost:3002/${id}`, {
+        const response = await fetch(`${USER_SERVICE_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -597,7 +610,7 @@ app.post("/user/cart", async (req, res) => {
     }
 
     try {
-        const response = await fetch("http://localhost:3002/cart", {
+        const response = await fetch(`${USER_SERVICE_URL}/cart`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...req.body, user_id: userId })
@@ -628,12 +641,12 @@ app.delete("/user/cart/single/:id", async (req, res) => {
     try {
         const response = await fetch(
 
-         `http://localhost:3002/cart/single/${encodeURIComponent(id)}`,
+         `${USER_SERVICE_URL}/cart/single/${encodeURIComponent(id)}`,
             {
             method: "DELETE"
             }
             /*
-            `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
+            `USER_SERVICE_URL/cart/${id}?user_id=${encodeURIComponent(userId)}`,
             {
             method: "DELETE"
             */
@@ -669,12 +682,12 @@ app.delete("/user/cart/:id", async (req, res) => {
     try {
         const response = await fetch(
 
-         `http://localhost:3002/cart/${encodeURIComponent(userId)}`,
+         `${USER_SERVICE_URL}/cart/${encodeURIComponent(userId)}`,
             {
             method: "DELETE"
             }
             /*
-            `http://localhost:3002/cart/${id}?user_id=${encodeURIComponent(userId)}`,
+            `USER_SERVICE_URL/cart/${id}?user_id=${encodeURIComponent(userId)}`,
             {
             method: "DELETE"
             */
@@ -702,7 +715,7 @@ app.delete("/user/cart/", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3002/cart/all/${encodeURIComponent(userId)}`,
+            `${USER_SERVICE_URL}/cart/all/${encodeURIComponent(userId)}`,
             {
             method: "DELETE"
             }
@@ -745,7 +758,7 @@ app.delete("/user/cart/", async (req, res) => {
 
      try {
          const response = await fetch(
-             `http://localhost:3003/receipt/`+ req.session.userId ,
+             `${PAYMENT_SERVICE_URL}/receipt/`+ req.session.userId ,
              {
              method: "POST",
              headers: { "Content-Type": "application/json" },
@@ -768,7 +781,7 @@ app.delete("/user/cart/", async (req, res) => {
 
  app.post("/receipt_item", async (req, res) => {
     try {
-        const response = await fetch("http://localhost:3003/receipt_item", {
+        const response = await fetch(`${PAYMENT_SERVICE_URL}/receipt_item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -789,7 +802,7 @@ app.delete("/user/cart/", async (req, res) => {
 
     console.log("USER SESSION: ", req.session.userId );
     try {
-        const response = await fetch("http://localhost:3003/shipment", {
+        const response = await fetch(`${PAYMENT_SERVICE_URL}/shipment`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -813,7 +826,7 @@ app.delete("/user/cart/", async (req, res) => {
 
   const id = Number.parseInt(req.params.id, 10);
 
-        const response = await fetch("http://localhost:3003/shipment/"+req.session.userId,{
+        const response = await fetch(`${PAYMENT_SERVICE_URL}/shipment/`+req.session.userId,{
      
         });
         const result = await response.json();
@@ -830,7 +843,7 @@ app.put("/shipment/:shipment_id", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3003/shipment/${encodeURIComponent(shipment_id)}`,
+            `${PAYMENT_SERVICE_URL}/shipment/${encodeURIComponent(shipment_id)}`,
             {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -856,7 +869,7 @@ app.put("/shipment/:shipment_id", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3003/shipment/cancel/${encodeURIComponent(shipment_id)}`,
+            `${PAYMENT_SERVICE_URL}/shipment/cancel/${encodeURIComponent(shipment_id)}`,
             { method: "DELETE",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({user_id: req.session.userId})
@@ -876,7 +889,7 @@ app.put("/shipment/:shipment_id", async (req, res) => {
     console.log( "DELETING EXPIRED");
    
     const response = await fetch(
-            `http://localhost:3003/shipment`,
+            `${PAYMENT_SERVICE_URL}/shipment`,
             { method: "DELETE" }
         );
        const result = await response.json();
@@ -895,8 +908,8 @@ app.put("/shipment/:shipment_id", async (req, res) => {
     const shipment_id = Number(req.params.shipment_id);
     console.log("RESTART SHIPMENT ID: ", shipment_id);
         const response = await fetch(
-           // `http://localhost:3003/shipment/restart/${encodeURIComponent(shipment_id)}`,
-           `http://localhost:3003/shipment/restart/${shipment_id}`,
+           // `${PAYMENT_SERVICE_URL}/shipment/restart/${encodeURIComponent(shipment_id)}`,
+           `${PAYMENT_SERVICE_URL}/shipment/restart/${shipment_id}`,
             { method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({user_id: req.session.userId})
@@ -920,7 +933,7 @@ app.put("/shipment/:shipment_id", async (req, res) => {
     console.log("GETTING RECEIPTS FOR USER WITH ID: ", req.session.userId);
     try {
         const response = await fetch(
-            `http://localhost:3003/receipts/${encodeURIComponent(req.session.userId)}`
+            `${PAYMENT_SERVICE_URL}/receipts/${encodeURIComponent(req.session.userId)}`
         );
 
         const result = await response.json();
@@ -945,7 +958,7 @@ app.get("/notification", async (req, res) => {
      try {
 
         //                      
-        const response = await fetch(`http://localhost:3004/notification/${req.session.userId}`);
+        const response = await fetch(`${NOTIFICATION_SERVICE_URL}/notification/${req.session.userId}`);
         const result = await response.json();
         return res.status(response.status).json(result);
     } catch (error) {
@@ -968,7 +981,7 @@ app.delete("/notification/:notification_id", async (req, res) => {
 
     try {
         const response = await fetch(
-            `http://localhost:3004/notification/${notificationId}`,
+            `${NOTIFICATION_SERVICE_URL}/notification/${notificationId}`,
 
          { method: "DELETE",
            body: JSON.stringify({user_id: req.session.userId})
@@ -1006,7 +1019,7 @@ app.get("/notification_preferences",async (req, res) => {
     
  try {
         const response = await fetch(
-            `http://localhost:3004/notification_preferences/${req.session.userId}`,
+            `${NOTIFICATION_SERVICE_URL}/notification_preferences/${req.session.userId}`,
         );
        console.log("GET PREFERENCE RESPONSE: ", response);
         const result = await response.json();
@@ -1026,7 +1039,7 @@ app.put("/notification_preferences/toggle", async (req, res) => {
     if (!userId) return;
 
      const response = await fetch(
-               `http://localhost:3004/notification_preference/toggle/${encodeURIComponent(userId)}`,
+               `${NOTIFICATION_SERVICE_URL}/notification_preference/toggle/${encodeURIComponent(userId)}`,
        {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -1058,7 +1071,7 @@ app.delete("/notification_preferences",async (req, res) => {
     if (!userId) return;
 
      const response = await fetch(
-               `http://localhost:3004/notification_preferences/${encodeURIComponent(userId)}`,
+               `${NOTIFICATION_SERVICE_URL}/notification_preferences/${encodeURIComponent(userId)}`,
        {
             method: "DELETE",
         }
@@ -1077,7 +1090,7 @@ app.put("/notification_preferences/enable_all",async (req, res) => {
 
 
      const response = await fetch(
-               `http://localhost:3004/notification_preferences/enable_all/${encodeURIComponent(userId)}`,
+               `${NOTIFICATION_SERVICE_URL}/notification_preferences/enable_all/${encodeURIComponent(userId)}`,
        {
             method: "PUT",
         }

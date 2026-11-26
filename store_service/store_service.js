@@ -1,9 +1,32 @@
 const Fastify = require("fastify");
 const cors = require("@fastify/cors");
 const mysql = require("mysql2/promise");
+const swaggerJsdoc = require("swagger-jsdoc");
+const fastifySwagger = require("@fastify/swagger");
+const fastifySwaggerUi = require("@fastify/swagger-ui");
 
 const app = Fastify({ logger: true });
 const PORT = 3001;
+const swaggerDocs = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Store Service API",
+      version: "1.0.0",
+    },
+    servers: [{ url: `http://localhost:${PORT}` }],
+  },
+  apis: [__filename],
+});
+
+app.register(fastifySwagger, {
+  openapi: {
+    info: swaggerDocs.info,
+    servers: swaggerDocs.servers,
+  },
+  transformObject: () => swaggerDocs,
+});
+app.register(fastifySwaggerUi, { routePrefix: "/api-docs" });
 
 if (process.env.NODE_ENV === "test") {
   require("dotenv").config({ path: "./.env.test" });
@@ -75,6 +98,39 @@ async function requireAdmin(userId, reply) {
   }
 }
 
+/**
+ * @swagger
+ * /stock/{product_id}:
+ *   put:
+ *     tags: [Products]
+ *     summary: Set a product's stock amount
+ *     parameters:
+ *       - in: path
+ *         name: product_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [new_amount]
+ *             properties:
+ *               new_amount:
+ *                 type: number
+ *                 minimum: 0
+ *     responses:
+ *       '200':
+ *         description: Stock updated
+ *       '400':
+ *         description: Invalid product ID or stock amount
+ *       '404':
+ *         description: Product not found
+ *       '500':
+ *         description: Unable to update stock
+ */
 app.put("/stock/:product_id", async (request, reply) => {
   //const productId = parseInt(request.params.product_id);
  const productId =parseInt(request.params.product_id);
@@ -122,6 +178,18 @@ app.put("/stock/:product_id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     tags: [Products]
+ *     summary: List all products
+ *     responses:
+ *       '200':
+ *         description: Product records
+ *       '500':
+ *         description: Unable to get products
+ */
 app.get("/", async (_request, reply) => {
   let connection;
   try {
@@ -138,6 +206,28 @@ app.get("/", async (_request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /{id}:
+ *   get:
+ *     tags: [Products]
+ *     summary: Get a product by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Product record
+ *       '400':
+ *         description: Invalid product ID
+ *       '404':
+ *         description: Product not found
+ *       '500':
+ *         description: Unable to get product
+ */
 app.get("/:id", async (request, reply) => {
   //const productId = parseInt(request.params.id);
 
@@ -165,6 +255,18 @@ app.get("/:id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /comments:
+ *   get:
+ *     tags: [Comments]
+ *     summary: List all product comments
+ *     responses:
+ *       '200':
+ *         description: Comment records
+ *       '500':
+ *         description: Unable to get comments
+ */
 app.get("/comments", async (_request, reply) => {
   let connection;
   try {
@@ -181,6 +283,27 @@ app.get("/comments", async (_request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /comments/{id}:
+ *   get:
+ *     tags: [Comments]
+ *     summary: List comments for a product
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Product ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Comments for the product
+ *       '400':
+ *         description: Invalid product ID
+ *       '500':
+ *         description: Unable to get comments
+ */
 app.get("/comments/:id", async (request, reply) => {
  // const productId = parseInt(request.params.id);
  const productId = parseInt(request.params.id);
@@ -206,6 +329,61 @@ app.get("/comments/:id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /{id}:
+ *   post:
+ *     tags: [Products]
+ *     summary: Create a product (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user whose admin status is checked
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               cost:
+ *                 type: number
+ *               kilograms:
+ *                 type: number
+ *               allergens:
+ *                 type: string
+ *               kilojoules:
+ *                 type: number
+ *               vitamins:
+ *                 type: string
+ *               stock:
+ *                 type: number
+ *               discount:
+ *                 type: number
+ *               image_path:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: Product created
+ *       '400':
+ *         description: Invalid user ID or request body
+ *       '401':
+ *         description: Authentication is required
+ *       '403':
+ *         description: Admin privileges are required
+ *       '502':
+ *         description: User service unavailable
+ *       '500':
+ *         description: Unable to create product
+ */
 app.post("/:user_id", async (request, reply) => {
   const userId = parseInt(request.params.user_id);
   if (userId === null) {
@@ -267,6 +445,64 @@ app.post("/:user_id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /{id}:
+ *   put:
+ *     tags: [Products]
+ *     summary: Update a product (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, name, description, cost, kilograms, allergens, kilojoules, vitamins, stock, discount, image_path]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               cost:
+ *                 type: number
+ *               kilograms:
+ *                 type: number
+ *               allergens:
+ *                 type: string
+ *               kilojoules:
+ *                 type: number
+ *               vitamins:
+ *                 type: string
+ *               stock:
+ *                 type: number
+ *               discount:
+ *                 type: number
+ *               image_path:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Product updated
+ *       '400':
+ *         description: Invalid product ID or body
+ *       '401':
+ *         description: Authentication is required
+ *       '403':
+ *         description: Admin privileges are required
+ *       '404':
+ *         description: Product not found
+ *       '502':
+ *         description: User service unavailable
+ *       '500':
+ *         description: Unable to update product
+ */
 app.put("/:id", async (request, reply) => {
   const productId = parseInt(request.params.id);
   if (productId === null) {
@@ -335,6 +571,44 @@ app.put("/:id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /{id}:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a product (admin only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *     responses:
+ *       '200':
+ *         description: Product deleted
+ *       '400':
+ *         description: Invalid product ID or request body
+ *       '401':
+ *         description: Authentication is required
+ *       '403':
+ *         description: Admin privileges are required
+ *       '404':
+ *         description: Product not found
+ *       '502':
+ *         description: User service unavailable
+ *       '500':
+ *         description: Unable to delete product
+ */
 app.delete("/:id", async (request, reply) => {
   const productId = parseInt(request.params.id);
   if (productId === null) {
@@ -371,6 +645,39 @@ app.delete("/:id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /comments:
+ *   post:
+ *     tags: [Comments]
+ *     summary: Create a product comment
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [product_id, userId, username, comment, created_at]
+ *             properties:
+ *               product_id:
+ *                 type: integer
+ *               userId:
+ *                 type: integer
+ *               username:
+ *                 type: string
+ *               comment:
+ *                 type: string
+ *               created_at:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       '201':
+ *         description: Comment created
+ *       '400':
+ *         description: Invalid comment data
+ *       '500':
+ *         description: Unable to create comment
+ */
 app.post("/comments", async (request, reply) => {
   if (!isRequestBody(request.body)) {
     return reply.code(400).send({ error: "A JSON request body is required" });
@@ -425,6 +732,40 @@ app.post("/comments", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /comments/{id}:
+ *   put:
+ *     tags: [Comments]
+ *     summary: Update a comment
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, comment]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *               comment:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Comment updated
+ *       '400':
+ *         description: Invalid comment ID or body
+ *       '404':
+ *         description: Comment not found
+ *       '500':
+ *         description: Unable to update comment
+ */
 app.put("/comments/:id", async (request, reply) => {
   const commentId = parseInt(request.params.id);
   if (commentId === null) {
@@ -484,6 +825,38 @@ app.put("/comments/:id", async (request, reply) => {
   }
 });
 
+/**
+ * @swagger
+ * /comments/{id}:
+ *   delete:
+ *     tags: [Comments]
+ *     summary: Delete a comment
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *     responses:
+ *       '200':
+ *         description: Comment deleted
+ *       '400':
+ *         description: Invalid comment ID or user ID
+ *       '404':
+ *         description: Comment not found
+ *       '500':
+ *         description: Unable to delete comment
+ */
 app.delete("/comments/:id", async (request, reply) => {
   const commentId = parseInt(request.params.id);
   if (commentId === null) {
