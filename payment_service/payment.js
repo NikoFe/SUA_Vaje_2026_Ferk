@@ -7,6 +7,16 @@ const swaggerUi = require("swagger-ui-express");
 
 const app = express();
 const PORT = 3003;
+
+const STORE_SERVICE_URL =
+  process.env.STORE_SERVICE_URL || "http://localhost:3001";
+const USER_SERVICE_URL =
+  process.env.USER_SERVICE_URL || "http://localhost:3002";
+const NOTIFICATION_SERVICE_URL =
+  process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3004";
+
+
+
 const swaggerDocs = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
@@ -32,6 +42,7 @@ const dbConfig = {
   database: `${process.env.DB_NAME}`,
   decimalNumbers: true, // <<< ADD THIS
 };
+
 app.use(express.json());
 app.use(cors());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
@@ -97,7 +108,7 @@ app.post("/receipt/:user_id", async (req, res) => {
 
   try {
   const response = await fetch(
-    `${userServiceUrl}/cart/${encodeURIComponent(userId)}`,
+    `${USER_SERVICE_URL}/cart/${encodeURIComponent(userId)}`,
   );
   //const result = await response.json();
   //return res.status(response.status).json(result);
@@ -129,7 +140,7 @@ app.post("/receipt/:user_id", async (req, res) => {
     }
 
     const individualResponse = await fetch(
-      `http://localhost:3001/${encodeURIComponent(productId)}`,
+      `${STORE_SERVICE_URL}/${encodeURIComponent(productId)}`,
     );
     if (individualResponse.status === 404) {
       return res.status(409).json({ error: "A product in your cart no longer exists" });
@@ -169,7 +180,7 @@ app.post("/receipt/:user_id", async (req, res) => {
     const productId = parseId(item.product_id);
     const amount = parseId(item.amount);
     const individualResponse = await fetch(
-      `http://localhost:3001/${encodeURIComponent(productId)}`,
+      `${STORE_SERVICE_URL}/${encodeURIComponent(productId)}`,
     );
     if (!individualResponse.ok) {
       return res.status(502).json({ error: "Store service unavailable" });
@@ -182,7 +193,7 @@ app.post("/receipt/:user_id", async (req, res) => {
     }
 
     const updatedStock = await fetch(
-      `http://localhost:3001/stock/${encodeURIComponent(productId)}`,
+      `${STORE_SERVICE_URL}/stock/${encodeURIComponent(productId)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -198,7 +209,7 @@ app.post("/receipt/:user_id", async (req, res) => {
   }
 
   const deleteResponse = await fetch(
-    `${userServiceUrl}/cart/${encodeURIComponent(userId)}`,
+    `${USER_SERVICE_URL}/cart/${encodeURIComponent(userId)}`,
     { method: "DELETE" },
   );
   if (!deleteResponse.ok) {
@@ -219,7 +230,7 @@ app.post("/receipt/:user_id", async (req, res) => {
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
 ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
       try {
-        const notificationResponse = await fetch("http://localhost:3004/notification", {
+        const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -387,7 +398,7 @@ app.post("/shipment", async (req, res) => {
     );
 
     try {
-      const notificationResponse = await fetch("http://localhost:3004/notification", {
+      const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -477,7 +488,7 @@ app.delete("/shipment/cancel/:shipment_id", async (req, res) => {
 
     if (userId) {
       try {
-        const notificationResponse = await fetch("http://localhost:3004/notification", {
+        const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -587,7 +598,7 @@ app.put("/shipment/:shipment_id", async (req, res) => {
 
     if (userId) {
       try {
-        const notificationResponse = await fetch("http://localhost:3004/notification", {
+        const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -772,7 +783,7 @@ app.put("/shipment/restart/:shipment_id", async (req, res) => {
 
     if (userId) {
       try {
-        const notificationResponse = await fetch("http://localhost:3004/notification", {
+        const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -841,7 +852,7 @@ app.delete("/shipment", async (req, res) => {
     const userId = parseId(req.body && req.body.user_id);
     if (userId && result.affectedRows > 0) {
       try {
-        const notificationResponse = await fetch("http://localhost:3004/notification", {
+        const notificationResponse = await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

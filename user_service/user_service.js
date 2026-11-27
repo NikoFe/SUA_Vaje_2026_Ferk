@@ -26,6 +26,17 @@ if (process.env.NODE_ENV === "test") {
   require("dotenv").config({ path: "./.env" });
 }
 
+/*
+const STORE_SERVICE_URL =
+  process.env.STORE_SERVICE_URL || "http://localhost:3001";
+const PAYMENT_SERVICE_URL =
+  process.env.PAYMENT_SERVICE_URL || "http://localhost:3003";*/
+const NOTIFICATION_SERVICE_URL =
+  process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3004";
+
+
+
+
 const dbConfig = {
   host: `${process.env.DB_HOST}`,
   user: `${process.env.DB_USER}`,
@@ -103,7 +114,7 @@ app.post("/cart", async (req, res) => {
     ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
     ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
     ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -284,7 +295,7 @@ app.delete("/cart/all/:user_id", async (req, res) => {
   ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
   ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
   ////OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO/
-  await fetch("http://localhost:3004/notification", {
+  await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -395,7 +406,7 @@ app.delete("/cart/:user_id", async (req, res) => {
     );
 
     if (result.affectedRows > 0) {
-      await fetch("http://localhost:3004/notification", {
+      await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -495,7 +506,7 @@ app.put("/cart", async (req, res) => {
       [newAmount, productId, userId],
     );
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -705,7 +716,7 @@ app.post("/create", async (req, res) => {
       [userId, username.trim(), password, email.trim()],
     );
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -715,7 +726,7 @@ app.post("/create", async (req, res) => {
         marked_needed_to_delete: 0,
       }),
     });
-    await fetch(`http://localhost:3004/notification_preferences/${userId}`, {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification_preferences/${userId}`, {
       method: "POST",
     });
 
@@ -804,7 +815,7 @@ app.put("/:id", async (req, res) => {
       [username.trim(), password, email.trim(), id],
     );
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

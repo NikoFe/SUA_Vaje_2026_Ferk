@@ -13,3 +13,5 @@ Check if req.body is not empty and includes every needed param for all endpoints
 
 
 fix register in docker compose
+
+fix delete single preference in profile (maybe only an issue in compose)

@@ -1,0 +1,93 @@
+------JWT access token creation
+
+After verifying the username and password, the user service issues a signed JWT containing at least sub (the user ID), name, iat, and exp.
+
+import jwt from 'jsonwebtoken';
+
+const payload = { sub: '12345', role: 'user' };
+const secret = process.env.JWT_SECRET;
+
+const token = jwt.sign(payload, secret, {
+  expiresIn: '15m'
+});
+
+console.log('Access Token:', token);
+
+
+-------Storing the access token
+
+server.js is Node.js running on the server; it cannot access browser localStorage. 
+
+An HttpOnly cookie 
+
+Avoid Storing JWTs in localStorage
+A frequent mistake is storing access or refresh tokens in localStorage
+
+-----JWT access token check and when to verify
+
+Token verification belongs in middleware, where Express can validate signatures, enforce expiration, and attach user claims to req.user for downstream authorization.
+Role-based authorization is straightforward with JWTs, since role or permission claims can be included in the token payload and checked in dedicated middleware.
+
+
+
+import jwt from 'jsonwebtoken';
+
+export function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Token missing' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+
+//and call next() to proceed to the route handler.
+
+    req.user = decoded;
+    next();
+  });
+}
+
+
+In this implementation, the middleware looks for the Authorization header, extracts the token, 
+and then calls jwt.verify(). Verification includes checking the signature, ensuring the token has not expired, and confirming that any time-based claims (such as nbf or iat) are valid. If everything checks out, decoded contains the payload that was originally signed, and the request is allowed to proceed.
+
+
+
+----JWT token sent to other services:
+
+The browser receives the token and sends it in the Authorization: Bearer <token> header on requests.
+
+if (req.user.role !== 'admin') {
+  return res.status(403).json({ message: 'Access denied' });
+}
+
+
+------JWT secret
+
+.env:
+
+JWT_SECRET="a-strong-secret-key"
+
+Load the variable into your application with:
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+const secret = process.env.JWT_SECRET;
+
+
+
+
+------JWT refresh token later*
+
+Refresh tokens should be stored in HttpOnly Secure cookies
+
+
+
+The /auth/refresh Endpoint
+A typical refresh flow begins with a dedicated endpoint such as /auth/refresh. The client calls this endpoint when the access token expires. If the application stores the refresh token in an HttpOnly cookie, the cookie accompanies the request automatically, and the server retrieves it from the incoming headers.

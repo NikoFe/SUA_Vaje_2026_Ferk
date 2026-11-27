@@ -42,6 +42,18 @@ const dbConfig = {
   decimalNumbers: true,
 };
 
+  
+
+const USER_SERVICE_URL =
+  process.env.USER_SERVICE_URL || "http://localhost:3002";
+const PAYMENT_SERVICE_URL =
+  process.env.PAYMENT_SERVICE_URL || "http://localhost:3003";
+const NOTIFICATION_SERVICE_URL =
+  process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3004";
+
+
+
+
 /*
 function parseInt(value) {
   if (
@@ -73,7 +85,7 @@ async function requireAdmin(userId, reply) {
 
   try {
     const response = await fetch(
-      `http://localhost:3002/status/${encodeURIComponent(parsedUserId)}`,
+      `${USER_SERVICE_URL}/status/${encodeURIComponent(parsedUserId)}`,
     );
     const result = await response.json();
 
@@ -710,7 +722,7 @@ app.post("/comments", async (request, reply) => {
       [id, productId, parsedUserId, comment, username, created_at],
     );
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -803,7 +815,7 @@ app.put("/comments/:id", async (request, reply) => {
       [comment, commentId],
     );
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -882,7 +894,7 @@ app.delete("/comments/:id", async (request, reply) => {
       return reply.code(404).send({ error: "Comment not found" });
     }
 
-    await fetch("http://localhost:3004/notification", {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
