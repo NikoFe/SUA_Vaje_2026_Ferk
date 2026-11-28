@@ -7,6 +7,12 @@ const swaggerUi = require("swagger-ui-express");
 const app = express();
 const PORT = 3002;
 
+
+
+
+
+const jwt = require('jsonwebtoken');
+
 const swaggerDocs = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
@@ -25,6 +31,12 @@ if (process.env.NODE_ENV === "test") {
 } else {
   require("dotenv").config({ path: "./.env" });
 }
+
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+
+
 
 /*
 const STORE_SERVICE_URL =
@@ -84,11 +96,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *       '500':
  *         description: Failed to create cart
  */
-
-
-
-
-
 
 app.post("/cart", async (req, res) => {
 
@@ -623,6 +630,7 @@ app.post("/validate", async (req, res) => {
   }
   const { username, password } = req.body;
 
+
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
@@ -635,7 +643,25 @@ app.post("/validate", async (req, res) => {
       return res.status(200).json([]);
     }
 
-    return res.status(200).json(rows[0]);
+////////////
+
+
+ console.log("USER VALIDATE ID: ",rows[0].id );
+ const userId= rows[0].id;
+
+const payload = { sub: String(userId), name: rows[0].username, role: 'user' };
+const secret = process.env.JWT_SECRET;
+
+console.log("SSSSECRET: ",secret );
+
+const token = jwt.sign(payload, secret, {
+  expiresIn: '45m'
+});
+
+////////////
+
+
+    return res.status(200).json(token);
   } catch (error) {
     console.error("Error validating user:", error);
     return res.status(500).json({ error: "Unable to validate user" });

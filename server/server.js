@@ -4,6 +4,11 @@ const mysql = require("mysql2/promise");
 const app = express();
 const path = require("path");
 const session = require ("express-session");
+const jwt = require('jsonwebtoken');
+const  cookieParser =require('cookie-parser');
+app.use(cookieParser());
+
+
 
 const STORE_PORT = 3001;
 const PROFILE_PORT = 3002;
@@ -31,6 +36,14 @@ const PAYMENT_SERVICE_URL =
   process.env.PAYMENT_SERVICE_URL || "http://localhost:3003";
 const NOTIFICATION_SERVICE_URL =
   process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3004";
+const AUTH_COOKIE_NAME = "access_token";
+const AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  path: "/",
+  maxAge: 45 * 60 * 1000,
+};
 
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -54,7 +67,6 @@ app.use(
 ///////////////
 ///////////////
 ////ROUTES
-
 
 
 app.get("/", (req, res) => {
@@ -95,29 +107,91 @@ app.get("/payment", (req, res) => {
        res.render("payment", {id_param: id});
 });
 
-app.get("/profile", (req, res) => {
+function authenticateToken(req, res, next) {
+  //req.get is a helper function for getting HTTP headers
+  const authHeader = req.get("authorization") || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(\S+)$/i);
 
+  //check if access token is in the cookies or in the bearer
+  const token =
+    req.cookies[AUTH_COOKIE_NAME] || (bearerMatch && bearerMatch[1]);
 
-    console.log("PROFILE USER ID: ", req.session.userId);
-    console.log("PROFILE USERNAME: ", req.session.username);
-    console.log("PROFILE USER EMAIL: ", req.session.email);
+  if (!token) {
+    return res.status(401).json({ message: "Token missing" });
+  }
 
-
-
-    if(!req.session.userId || !req.session.username ||  !req.session.email){
-      
-       console.log("ERROR! YOU NEED TO BE LOGGED IN" );
-       res.json ({message:"ERROR YOPU NEED TO BE LOGGED IN!"});
-      //  res.render("profile", {user_id: req.session.userId   });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
+    if (!decoded || typeof decoded !== "object" || !decoded.sub) {
+      throw new Error("JWT subject is missing");
     }
-    else {
-       console.log("CALLING PROFILE!");
-   //    id= parseInt(req.params.id)
-    //   res.render("profile", {user_id: req.session.userId, username:req.session.username ,   user_email:req.session.email  });
-       res.render("profile", {user_id: req.session.userId   });
-       }
+    req.user = decoded;
+    return next();
+  } catch (error) {
+
+    //delete cookie, if the cookie contains invalid or malformed token 
+    res.clearCookie(AUTH_COOKIE_NAME, {
+      httpOnly: true,
+      secure: AUTH_COOKIE_OPTIONS.secure,
+      sameSite: AUTH_COOKIE_OPTIONS.sameSite,
+      path: AUTH_COOKIE_OPTIONS.path,
+    });
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+}
+
+app.get("/profile", authenticateToken, (req, res) => {
+  return res.render("profile", { user_id: req.user.sub });
 });
 
+
+app.post("/validate", async (req, res) => {
+  try {
+    const response = await fetch(`${USER_SERVICE_URL}/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+
+    if (!response.ok) {
+      return res.status(502).send("Authentication service unavailable");
+    }
+
+    const token = await response.json();
+    if (typeof token !== "string" || token.length === 0) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    console.log("TOKEN: ", token);
+
+    console.log("SSSSECRET: ",process.env.JWT_SECRET );
+
+
+    let claims;
+    try {
+      claims = jwt.verify(token, process.env.JWT_SECRET, {
+        algorithms: ["HS256"],
+      });
+    } catch (error) {
+      console.error("Authentication service returned an invalid JWT:", error);
+      return res.status(502).json({ message: "Authentication service returned an invalid token" });
+    }
+
+    if (!claims || typeof claims !== "object" || !claims.sub) {
+      return res.status(502).json({ message: "Authentication token has no subject" });
+    }
+
+    res.cookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
+    req.session.userId = claims.sub;
+    req.session.username = claims.name;
+    return res.send("OK");
+  } catch (error) {
+    console.error("Error contacting User Service:", error);
+    return res.status(502).send("Authentication service unavailable");
+  }
+});
 
 app.get('/update/:id', async (req, res) => {
     const productId = Number.parseInt(req.params.id, 10);
@@ -437,33 +511,6 @@ app.get("/user/cart", async (req, res) => {
         return res.status(502).json({ error: "User service unavailable" });
     }
 });
-
-
-app.post("/validate", async(req,res) => { //*** */
-
-    console.log("VALIDATION IN PROCESS!");
-        const response = await fetch(`${USER_SERVICE_URL}/validate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(req.body)
-        });
-        const result = await response.json();
-   // console.log("RESULT: ", result);
-            if (!response.ok) {
-      return res.status(502).send("Authentication service unavailable");
-    }
-      
-    if (!result.id) {
-      return res.status(401).render("login", {
-        error: "Invalid username or password"
-      });
-    }
-    //console.log("VALIDATE::: ", result);
-       req.session.userId = result.id;
-       req.session.username = result.username;
-       req.session.email = result.email
-       res.send("OK");    
-})
 
 
 app.post("/user/create", async(req,res) => { //*** */

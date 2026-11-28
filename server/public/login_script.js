@@ -83,8 +83,19 @@ async function login(event){
    if(response.statusText =="OK"){
 
      //console.log("WORKING!!!!");
-    window.location.href = `http://localhost:3010/store`;
 
+   //now validate
+
+   const response2 = await fetch('http://localhost:3010/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: username_input, password:password_input}),
+        });
+   console.log("RESPONSE2: "+ response2);
+
+    if(response2.ok){
+      window.location.href = `http://localhost:3010/store`;
+    }
    }
    else {
       console.log("ALREADY!!!");
